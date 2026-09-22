@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hossam & Menna</title>
+<meta name="description" content="You are invited to the wedding of Hossam & Menna">
+<meta name="theme-color" content="#f6f1e7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Cinzel:wght@400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="locked">
+
+<!-- ============ ENVELOPE ============ -->
+<div id="envelope" aria-label="Tap to open the invitation">
+  <div class="env-inside"></div>
+  <div class="env-rays"></div>
+  <div class="env-glow"></div>
+  <div class="flap flap-left"><div class="paper"><div class="gold"></div></div></div>
+  <div class="flap flap-right"><div class="paper"><div class="gold"></div></div></div>
+  <div class="flap flap-bottom"><div class="paper"><div class="gold"></div></div></div>
+  <div class="flap flap-top">
+    <div class="paper"><div class="gold"></div></div>
+    <button class="seal" id="seal" aria-label="Open invitation">
+      <svg viewBox="0 0 200 200" class="seal-svg" aria-hidden="true">
+        <defs>
+          <radialGradient id="wax" cx="40%" cy="35%" r="70%">
+            <stop offset="0" stop-color="#fffdf8"/>
+            <stop offset=".55" stop-color="#f1e8d8"/>
+            <stop offset="1" stop-color="#d9cbb2"/>
+          </radialGradient>
+          <radialGradient id="waxIn" cx="45%" cy="40%" r="65%">
+            <stop offset="0" stop-color="#faf5ea"/>
+            <stop offset="1" stop-color="#e6dac4"/>
+          </radialGradient>
+          <linearGradient id="goldG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f3dc9a"/>
+            <stop offset=".35" stop-color="#c79a45"/>
+            <stop offset=".6" stop-color="#f0d488"/>
+            <stop offset="1" stop-color="#a87a2c"/>
+          </linearGradient>
+          <filter id="sealShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#6b5530" flood-opacity=".28"/>
+          </filter>
+        </defs>
+        <path filter="url(#sealShadow)" fill="url(#wax)" d="M100 8c10 0 14 7 23 9s18-3 25 3 5 15 10 22 15 9 18 18-4 15-3 24 9 15 6 24-13 11-18 18-4 16-11 21-16 1-25 4-14 11-25 11-15-8-24-10-18 3-25-3-5-15-10-22-15-9-18-18 4-15 3-24-9-15-6-24 13-11 18-18 4-16 11-21 16-1 25-4 14-11 24-11z"/>
+        <circle cx="100" cy="100" r="62" fill="url(#waxIn)" stroke="#d6c6a8" stroke-width="2"/>
+        <circle cx="100" cy="100" r="55" fill="none" stroke="url(#goldG)" stroke-width="1.6"/>
+        <circle cx="100" cy="100" r="51" fill="none" stroke="url(#goldG)" stroke-width=".7" stroke-dasharray="1.5 3"/>
+        <text x="100" y="118" text-anchor="middle" font-family="Pinyon Script, cursive" font-size="56" fill="url(#goldG)" stroke="#9c7430" stroke-width=".4">H<tspan font-size="34" dy="-4">&amp;</tspan><tspan dy="4">M</tspan></text>
+      </svg>
+    </button>
+  </div>
+  <div class="sparkles"></div>
+  <p class="tap-hint">Tap the seal to open</p>
+  <div class="env-flash"></div>
+</div>
+
+<!-- ============ MUSIC ============ -->
+<button id="musicBtn" class="music" aria-label="Play / pause music" hidden>
+  <svg class="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/></svg>
+  <svg class="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg>
+</button>
+<audio id="music" src="assets/music.mp3" loop preload="auto"></audio>
+
+<main id="site">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero-media">
+      <img src="assets/hero.jpg" alt="Bride and groom walking toward a palace" class="hero-img">
+      <img src="assets/hero.jpg" alt="" class="hero-img breeze" aria-hidden="true">
+      <video class="hero-video" muted loop playsinline preload="auto" poster="assets/hero.jpg" aria-hidden="true"></video>
+      <div class="sun"></div>
+      <div class="water"></div>
+      <i class="lantern" style="--x:12%;--y:22.5%;--d:.0s"></i>
+      <i class="lantern" style="--x:4.5%;--y:34%;--d:.7s"></i>
+      <i class="lantern" style="--x:86.5%;--y:23.5%;--d:.35s"></i>
+      <i class="lantern" style="--x:94.5%;--y:36.5%;--d:1.1s"></i>
+    </div>
+    <canvas class="motes" aria-hidden="true"></canvas>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="breezeF" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="3" result="n">
+          <animate attributeName="baseFrequency" dur="9s" values="0.012 0.020;0.016 0.026;0.012 0.020" repeatCount="indefinite"/>
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </svg>
+    <div class="hero-text">
+      <p class="small-caps rise d1">Welcome to the</p>
+      <p class="script-sm rise d2">Wedding Celebration</p>
+      <p class="of rise d3">of</p>
+      <h1 class="names rise d4"><span>Hossam</span><span class="amp">&amp;</span><span class="n2">Menna</span></h1>
+    </div>
+    <a href="#date" class="scroll-down rise d5">
+      <span>Scroll down</span>
+      <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+    </a>
+  </section>
+
+  <!-- ============ DATE (scratch) ============ -->
+  <section id="date" class="sec date-sec">
+    <img src="assets/floral-left.png" class="fl fl-l" alt="" aria-hidden="true"><img src="assets/floral-right.png" class="fl fl-r" alt="" aria-hidden="true">
+    <h2 class="script-title reveal">The Date</h2>
+    <p class="hint reveal">✦ Scratch to reveal the date ✦</p>
+    <div class="scratch-row reveal">
+      <div class="scratch-item">
+        <div class="scratch-card"><span class="val" id="dDay">16</span><canvas></canvas></div>
+        <small>Day</small>
+      </div>
+      <div class="scratch-item">
+        <div class="scratch-card"><span class="val val-sm" id="dMonth">December</span><canvas></canvas></div>
+        <small>Month</small>
+      </div>
+      <div class="scratch-item">
+        <div class="scratch-card"><span class="val" id="dYear">2026</span><canvas></canvas></div>
+        <small>Year</small>
+      </div>
+    </div>
+    <p class="weekday reveal" id="dWeekday"></p>
+  </section>
+
+  <!-- ============ INVITATION CARD ============ -->
+  <section class="sec card-sec">
+    <div class="arch-card reveal">
+      <svg class="arch-frame" viewBox="0 0 400 680" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="gl" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#e8cf8e"/><stop offset=".5" stop-color="#b98a3e"/><stop offset="1" stop-color="#e3c47c"/>
+          </linearGradient>
+        </defs>
+        <path d="M14 676V250C14 150 90 92 150 62c26-13 42-26 50-52 8 26 24 39 50 52 60 30 136 88 136 188v426" fill="none" stroke="url(#gl)" stroke-width="2.2"/>
+        <path d="M26 676V254C26 162 98 108 156 78c20-10 36-22 44-40 8 18 24 30 44 40 58 30 130 84 130 176v422" fill="none" stroke="url(#gl)" stroke-width=".9"/>
+        <path d="M200 0l5 9-5 9-5-9z" fill="url(#gl)"/>
+      </svg>
+      <div class="arch-content">
+        <p class="bismillah">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+        <p class="caps">You are invited to the<br>wedding ceremony of</p>
+        <h3 class="script-name">Hossam</h3>
+        <p class="parent" id="groomParents"></p>
+        <p class="with">with</p>
+        <h3 class="script-name">Menna</h3>
+        <p class="parent" id="brideParents"></p>
+        <div class="divider"><i></i><b>✦</b><i></i></div>
+        <p class="dear">Dear Friends and Family</p>
+        <p class="body-txt">Join us for an evening of love, laughter, and unforgettable memories as we begin our forever.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TIMELINE ============ -->
+  <section class="sec timeline-sec">
+    <h2 class="script-title reveal">Wedding Timeline</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <!-- ============ COUNTDOWN ============ -->
+  <section class="sec countdown-sec">
+    <div class="floral floral-right"></div>
+    <h2 class="script-title reveal">The Celebration Begins</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <div class="countdown reveal">
+      <div><b id="cdD">000</b><small>Days</small></div><span>:</span>
+      <div><b id="cdH">00</b><small>Hours</small></div><span>:</span>
+      <div><b id="cdM">00</b><small>Minutes</small></div><span>:</span>
+      <div><b id="cdS">00</b><small>Seconds</small></div>
+    </div>
+  </section>
+
+  <!-- ============ LOCATION ============ -->
+  <section class="sec location-sec">
+    <h2 class="script-title reveal">Location</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <p class="city reveal" id="city">CAIRO</p>
+    <p class="venue reveal" id="venue"></p>
+    <div class="venue-img reveal"></div>
+    <div class="map-wrap reveal">
+      <a class="open-maps" id="openMaps" target="_blank" rel="noopener">Open in Maps ↗</a>
+      <iframe id="mapFrame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Venue map"></iframe>
+    </div>
+  </section>
+
+  <!-- ============ DRESS CODE ============ -->
+  <section class="sec dress-sec">
+    <h2 class="script-title reveal">Dress Code</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <img src="assets/dresscode.jpg" alt="Guests dressed in pastel formal attire" class="dress-img reveal">
+    <p class="body-txt reveal">We kindly invite our guests to dress in</p>
+    <p class="dress-style reveal">Elegant Formal Attire</p>
+    <p class="body-txt reveal">in soft pastel shades.</p>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <p class="caps reveal">Recommended shades</p>
+    <div class="shades reveal">
+      <span style="--c:#cdbde6"></span><span style="--c:#f6c9a8"></span><span style="--c:#f5e7a1"></span>
+      <span style="--c:#efc3cb"></span><span style="--c:#bcd0e6"></span><span style="--c:#d7d1c4"></span>
+    </div>
+    <p class="body-txt small reveal">Please avoid wearing white &amp; ivory —<br>reserved for the bride.</p>
+  </section>
+
+  <!-- ============ CLOSING ============ -->
+  <section class="sec closing-sec">
+    <img src="assets/floral-left.png" class="fl fl-l" alt="" aria-hidden="true"><img src="assets/floral-right.png" class="fl fl-r" alt="" aria-hidden="true">
+    <p class="arabic reveal">وَمِنْ آيَاتِهِ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً</p>
+    <p class="body-txt reveal">Your presence is the greatest gift.<br>We can’t wait to celebrate with you.</p>
+    <p class="monogram reveal">H <span>&amp;</span> M</p>
+    <p class="caps reveal" id="footDate"></p>
+  </section>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>

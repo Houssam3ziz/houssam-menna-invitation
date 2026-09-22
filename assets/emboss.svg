@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="260" height="260" viewBox="0 0 260 260">
+  <defs>
+    <g id="m" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- rose -->
+      <g transform="translate(70 70)">
+        <path d="M0-4c5-2 8 3 5 7s-10 2-10-4 7-10 13-7 7 12 1 16-16 3-17-6 7-17 16-15 13 11 9 18"/>
+        <path d="M-22-6c-3-12 8-22 20-22s24 9 23 21M-22-6c-2 13 8 24 22 25 13 1 23-8 22-20"/>
+        <path d="M-30 0c-6-18 10-36 30-36s37 16 33 34M-30 0c0 18 15 32 32 32 18 0 32-14 31-34"/>
+        <path d="M-2-36c6-6 16-7 22-2M30-14c7 2 11 10 9 17M-30 6c-7 5-8 14-3 20"/>
+      </g>
+      <!-- leaves & vine -->
+      <path d="M100 96c20 18 40 26 62 28s40 12 52 30"/>
+      <path d="M128 112c-4-14 4-24 16-26-2 13-7 22-16 26zM128 112c4-9 10-17 16-26"/>
+      <path d="M160 124c6-12 18-16 28-12-6 11-15 15-28 12zM160 124c9-4 18-8 28-12"/>
+      <path d="M150 122c-2 14-12 22-24 22 3-12 11-19 24-22zM150 122c-8 8-15 15-24 22"/>
+      <path d="M196 140c14-2 24 6 26 17-12-1-21-7-26-17zM196 140c9 6 18 11 26 17"/>
+      <!-- small flower -->
+      <g transform="translate(200 60)">
+        <path d="M0-10c5-8 14-2 10 6 9 0 9 11 0 11 3 8-6 14-10 6-5 8-14 2-10-6-9 0-9-11 0-11-3-8 6-14 10-6z"/>
+        <circle r="3"/>
+      </g>
+      <g transform="translate(40 200)">
+        <path d="M0-8c4-6 11-2 8 5 7 0 7 9 0 9 3 6-4 11-8 5-4 6-11 1-8-5-7 0-7-9 0-9-3-7 4-11 8-5z"/>
+        <circle r="2.5"/>
+      </g>
+      <!-- sprig -->
+      <path d="M20 250c14-20 30-34 54-40M40 230c-10-4-14-12-12-20 8 3 12 10 12 20zM56 218c-2-10 3-17 11-19 0 9-4 15-11 19z"/>
+      <path d="M150 190c10 10 12 24 6 38M156 206c10-2 16 2 18 10-8 1-14-3-18-10zM158 222c-10 0-15 5-16 13 8 0 13-5 16-13z"/>
+      <circle cx="110" cy="30" r="1.8"/><circle cx="240" cy="110" r="1.8"/><circle cx="100" cy="240" r="1.8"/><circle cx="230" cy="220" r="1.8"/>
+    </g>
+  </defs>
+  <use xlink:href="#m" href="#m" transform="translate(1.2 1.4)" stroke="#b9a782" stroke-opacity=".32" stroke-width="2.2"/>
+  <use xlink:href="#m" href="#m" transform="translate(-.8 -.8)" stroke="#ffffff" stroke-opacity=".95" stroke-width="2"/>
+  <use xlink:href="#m" href="#m" stroke="#efe7d6" stroke-width="1.6"/>
+</svg>
