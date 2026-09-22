@@ -9,9 +9,9 @@ const CONFIG = {
   venue: 'Grand Ballroom, Cairo, Egypt',
   mapQuery: 'Cairo, Egypt',                  // what Google Maps should search for
   timeline: [
-    { time: '7:00 pm',  label: 'Guest Arrival &<br>Welcome Drinks', icon: 'assets/icon-arch.jpg' },
-    { time: '8:00 pm',  label: 'Zaffa &<br>Bride Entrance',          icon: 'assets/icon-bride.jpg' },
-    { time: '9:30 pm',  label: 'Dinner<br>is Served',                icon: 'assets/icon-dinner.jpg' },
+    { time: '7:00 pm',  label: 'Guest Arrival &<br>Welcome Drinks', icon: 'assets/icon-arch.webp' },
+    { time: '8:00 pm',  label: 'Zaffa &<br>Bride Entrance',          icon: 'assets/icon-bride.webp' },
+    { time: '9:30 pm',  label: 'Dinner<br>is Served',                icon: 'assets/icon-dinner.webp' },
     { time: '11:00 pm', label: 'Cake Cutting &<br>Let the Fun Begin', icon: 'assets/icon-cake.svg' },
   ],
 };
