@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Messages — moderation</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+  :root{--bg:#fdfbf7;--ink:#5f4b30;--gold:#b8894a;--gold-ink:#7a5a26;--muted:#7f6d53;--line:#efe4cc}
+  *{box-sizing:border-box}
+  body{margin:0;font:17px/1.5 'Cormorant Garamond',Georgia,serif;color:var(--ink);background:var(--bg)}
+  main{max-width:720px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-weight:600;font-size:28px;margin:0 0 4px;color:var(--gold-ink)}
+  h2{font-size:20px;margin:28px 0 10px;color:var(--gold-ink)}
+  p.sub{margin:0 0 20px;color:var(--muted)}
+  form{display:flex;gap:8px}
+  input{flex:1;font:inherit;padding:10px 12px;border:1px solid #e4d4b2;border-radius:10px;background:#fff}
+  button{font:600 15px Georgia,serif;padding:10px 16px;border-radius:999px;border:1px solid #e4d4b2;background:#fff;color:var(--gold-ink);cursor:pointer;min-height:42px}
+  button.ok{background:var(--gold);border-color:var(--gold);color:#fff}
+  button.no{color:#9a4632}
+  .card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;margin-bottom:10px}
+  .card img{max-width:100%;max-height:220px;display:block;margin:4px 0}
+  .meta{font-size:14px;color:var(--muted)}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  #status{min-height:1.5em;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Messages</h1>
+  <p class="sub">Approve or remove guest messages. Only works with the ADMIN_KEY set in Vercel.</p>
+  <form id="login"><input type="password" id="key" placeholder="Admin key" autocomplete="current-password" required><button class="ok">Open</button></form>
+  <p id="status" role="status"></p>
+  <section id="lists" hidden>
+    <h2>Waiting for approval <span id="nPending"></span></h2><div id="pending"></div>
+    <h2>Published <span id="nPublished"></span></h2><div id="published"></div>
+  </section>
+</main>
+<script>
+let KEY = sessionStorage.getItem('hm-admin') || '';
+const $ = s => document.querySelector(s);
+const call = (init = {}) => fetch('/api/moderate', { ...init, headers: { 'x-admin-key': KEY, 'Content-Type': 'application/json' } })
+  .then(async r => { if (!r.ok) throw new Error(r.status === 401 ? 'Wrong key.' : 'Error ' + r.status); return r.json(); });
+function card(e, actions) {
+  const d = document.createElement('div'); d.className = 'card';
+  if (e.drawing) { const i = new Image(); i.src = e.drawing; i.alt = 'Handwritten message'; d.append(i); }
+  if (e.message) { const p = document.createElement('p'); p.textContent = e.message; p.style.margin = '0'; d.append(p); }
+  const m = document.createElement('p'); m.className = 'meta'; m.textContent = `— ${e.name} · ${new Date(e.createdAt).toLocaleString()}`; d.append(m);
+  const row = document.createElement('div'); row.className = 'row';
+  actions.forEach(([label, action, cls]) => {
+    const b = document.createElement('button'); b.textContent = label; b.className = cls;
+    b.onclick = async () => { b.disabled = true; try { await call({ method: 'POST', body: JSON.stringify({ id: e.id, action }) }); load(); } catch (err) { $('#status').textContent = err.message; b.disabled = false; } };
+    row.append(b);
+  });
+  d.append(row); return d;
+}
+async function load() {
+  $('#status').textContent = 'Loading…';
+  try {
+    const { pending, published } = await call();
+    $('#pending').replaceChildren(...pending.map(e => card(e, [['Approve', 'approve', 'ok'], ['Reject', 'reject', 'no']])));
+    $('#published').replaceChildren(...published.map(e => card(e, [['Remove', 'remove', 'no']])));
+    $('#nPending').textContent = `(${pending.length})`; $('#nPublished').textContent = `(${published.length})`;
+    $('#lists').hidden = false; $('#login').hidden = true; $('#status').textContent = '';
+    sessionStorage.setItem('hm-admin', KEY);
+  } catch (err) { $('#status').textContent = err.message; $('#login').hidden = false; }
+}
+$('#login').onsubmit = e => { e.preventDefault(); KEY = $('#key').value.trim(); load(); };
+if (KEY) load();
+</script>
+</body>
+</html>

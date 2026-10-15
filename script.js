@@ -294,38 +294,54 @@ const api = (path, init) => fetch(CONFIG.api + path, init).then(async r => {
   return r.json();
 });
 
-/** Resize + re-encode to JPEG. Drops EXIF (incl. GPS) as a side effect. */
+/** Draw an image into a canvas at most `edge` px on its long side. */
+function scaled(src, edge) {
+  const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
+  const k = Math.min(1, edge / Math.max(w0, h0));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(w0 * k); cv.height = Math.round(h0 * k);
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(src, 0, 0, cv.width, cv.height);
+  return cv;
+}
+const toJpeg = (cv, q) => new Promise(res => cv.toBlob(res, 'image/jpeg', q));
+
+/** Resize + re-encode to JPEG (drops EXIF incl. GPS) and make a grid thumbnail. */
 async function prepareImage(file) {
   let src;
   try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
   catch {
     const url = URL.createObjectURL(file);
-    try { src = new Image(); src.src = url; await src.decode(); } finally { URL.revokeObjectURL(url); }
+    try { src = new Image(); src.src = url; await src.decode(); }
+    catch { throw new Error('unreadable'); }
+    finally { URL.revokeObjectURL(url); }
   }
-  const w0 = src.naturalWidth || src.width, h0 = src.naturalHeight || src.height;
-  const k = Math.min(1, CONFIG.uploads.maxEdge / Math.max(w0, h0));
-  const cv = document.createElement('canvas');
-  cv.width = Math.round(w0 * k); cv.height = Math.round(h0 * k);
-  cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
+  const big = scaled(src, CONFIG.uploads.maxEdge);
+  let full = await toJpeg(big, CONFIG.uploads.quality);
+  if (full && full.size > CONFIG.uploads.maxBytes) full = await toJpeg(big, .7);
+  const thumb = await toJpeg(scaled(big, 520), .78);
   src.close?.();
-  let blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', CONFIG.uploads.quality));
-  if (blob && blob.size > CONFIG.uploads.maxBytes) blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', .7));
-  if (!blob || blob.size > CONFIG.uploads.maxBytes) throw new Error('too-large');
-  return blob;
+  if (!full || full.size > CONFIG.uploads.maxBytes) throw new Error('too-large');
+  return { full, thumb };
 }
 
-function sendPhoto(blob, onProgress) {
+function sendPhoto({ full, thumb }, onProgress) {
   return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('photo', full, 'photo.jpg');
+    if (thumb) form.append('thumb', thumb, 'thumb.jpg');
     const xhr = new XMLHttpRequest();
     xhr.open('POST', CONFIG.api + '/photos');
-    xhr.setRequestHeader('Content-Type', 'image/jpeg');
+    xhr.timeout = 90_000;
     xhr.upload.onprogress = e => e.lengthComputable && onProgress(Math.round(e.loaded / e.total * 100));
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch { reject(new Error('bad-response')); } }
-      else reject(new Error('HTTP ' + xhr.status));
+      else reject(new Error(xhr.status === 429 ? 'rate-limited' : 'HTTP ' + xhr.status));
     };
     xhr.onerror = () => reject(new Error('network'));
-    xhr.send(blob);
+    xhr.ontimeout = () => reject(new Error('timeout'));
+    xhr.send(form);
   });
 }
 
@@ -368,7 +384,10 @@ $('#photoInput').addEventListener('change', e => {
   renderQueue();
 });
 
+let uploading = false;
 uploadBtn.addEventListener('click', async () => {
+  if (uploading) return;            // no double submissions
+  uploading = true;
   uploadBtn.disabled = true;
   statusEl.textContent = ''; statusEl.className = 'upload-status';
   let ok = 0, failed = 0;
@@ -381,18 +400,23 @@ uploadBtn.addEventListener('click', async () => {
       addPhoto(photo);
     } catch (err) {
       q.state = 'error'; failed++;
+      q.reason = err.message;
       console.warn('[upload]', err);
     }
     renderQueue();
   }
   uploadBtn.disabled = false;
+  uploading = false;
   if (ok) {
     statusEl.innerHTML = `Thank you — ${ok} photo${ok === 1 ? '' : 's'} added to the gallery ♡ <a href="#gallery">View gallery</a>`;
     statusEl.classList.add('ok');
     if (!REDUCED) burst($('#uploader').getBoundingClientRect(), 28);
   }
   if (failed) {
-    statusEl.insertAdjacentHTML('beforeend', `${ok ? '<br>' : ''}${failed} photo${failed === 1 ? '' : 's'} could not be uploaded. Check your connection and try again.`);
+    const why = queue.some(q => q.reason === 'unreadable') ? 'One of the files isn’t a photo we can read — try a JPG.'
+      : queue.some(q => q.reason === 'rate-limited') ? 'That’s a lot of photos at once — please wait a few minutes.'
+      : 'Check your connection and tap “Try again”.';
+    statusEl.insertAdjacentHTML('beforeend', `${ok ? '<br>' : ''}${failed} photo${failed === 1 ? '' : 's'} could not be uploaded. ${why}`);
     statusEl.classList.add('err');
   }
 });
@@ -422,7 +446,7 @@ function renderGallery() {
     const btn = document.createElement('button');
     btn.type = 'button'; btn.setAttribute('aria-label', `Open photo ${i + 1} of ${photos.length}`);
     const img = document.createElement('img');
-    img.src = p.url; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+    img.src = p.thumb || p.url; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
     img.onload = () => li.classList.add('loaded');
     btn.appendChild(img); btn.onclick = () => openLightbox(i);
     li.appendChild(btn); grid.appendChild(li);
@@ -519,12 +543,20 @@ function ago(iso) {
 function wishCard(w, fresh = false) {
   const el = document.createElement('article');
   el.className = 'note' + (fresh ? ' fresh' : '');
-  const msg = document.createElement('p'); msg.className = 'note-msg'; msg.textContent = w.message;
+  const msg = document.createElement('p'); msg.className = 'note-msg'; msg.textContent = w.message || '';
   const by = document.createElement('p'); by.className = 'note-by';
   const name = document.createElement('b'); name.textContent = w.name;
   const when = document.createElement('time'); when.dateTime = w.createdAt; when.textContent = ago(w.createdAt);
   by.append('— ', name, ' · ', when);
-  el.append(msg, by);
+  if (w.drawing) {
+    const ink = document.createElement('img');
+    ink.className = 'note-ink'; ink.src = w.drawing; ink.loading = 'lazy'; ink.decoding = 'async';
+    ink.alt = `Handwritten message from ${w.name}`;
+    el.classList.add('has-ink');
+    el.append(ink);
+  }
+  if (w.message) el.append(msg);
+  el.append(by);
   return el;
 }
 const noteIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); noteIO.unobserve(e.target); } }), { threshold: .15 });
@@ -542,27 +574,155 @@ async function loadWishes() {
 boardMore.onclick = () => { wishesShown += 6; renderBoard(); };
 new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { o.disconnect(); loadWishes(); } }, { rootMargin: '600px' }).observe($('#wishes'));
 
+/* ---- handwriting pad: finger, Apple Pencil, stylus or mouse ---- */
+const ink = (() => {
+  const pad = $('#inkPad'), cv = $('#inkCanvas'), ctx = cv.getContext('2d');
+  const strokes = [];             // each: { color, pts: [[x, y, w], ...] } in 0..1 space
+  let current = null, color = '#5e431a', W = 0, H = 0;
+
+  function size() {
+    const r = cv.getBoundingClientRect();
+    if (!r.width) return;
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+  // Pressure/velocity-aware width: quick strokes thin out like a real nib.
+  function drawStroke(c, st, w, h, scale = 1) {
+    const p = st.pts, n = p.length;
+    c.strokeStyle = c.fillStyle = st.color; c.lineCap = 'round'; c.lineJoin = 'round';
+    if (n === 1) { c.beginPath(); c.arc(p[0][0] * w, p[0][1] * h, p[0][2] * scale / 2, 0, 7); c.fill(); return; }
+    const mid = (a, b) => [(a[0] + b[0]) / 2 * w, (a[1] + b[1]) / 2 * h];
+    // Midpoint quadratic smoothing, one segment at a time so width can vary.
+    for (let i = 1; i < n; i++) {
+      const from = i === 1 ? [p[0][0] * w, p[0][1] * h] : mid(p[i - 2], p[i - 1]);
+      const to = i === n - 1 ? [p[i][0] * w, p[i][1] * h] : mid(p[i - 1], p[i]);
+      c.lineWidth = p[i][2] * scale;
+      c.beginPath(); c.moveTo(from[0], from[1]);
+      c.quadraticCurveTo(p[i - 1][0] * w, p[i - 1][1] * h, to[0], to[1]);
+      c.stroke();
+    }
+  }
+  function redraw() { ctx.clearRect(0, 0, W, H); strokes.forEach(st => drawStroke(ctx, st, W, H)); }
+  function sync() {
+    const has = strokes.length > 0;
+    $('#inkUndo').disabled = $('#inkClear').disabled = !has;
+    pad.classList.toggle('has-ink', has);
+  }
+  function point(e) {
+    const r = cv.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    const last = current?.pts.at(-1);
+    const speed = last ? Math.hypot((x - last[0]) * r.width, (y - last[1]) * r.height) : 0;
+    const pressure = e.pointerType === 'pen' && e.pressure > 0 ? e.pressure : null;
+    const base = pressure !== null ? 1.4 + pressure * 4.2 : Math.max(1.6, 3.6 - speed * .09);
+    const wv = last ? last[2] * .6 + base * .4 : base;   // smooth width changes
+    return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y)), wv];
+  }
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    current = { color, pts: [] };
+    current.pts.push(point(e));
+    strokes.push(current);
+    redraw(); sync();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!current) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    (evs.length ? evs : [e]).forEach(ev => current.pts.push(point(ev)));
+    // only the active stroke needs repainting
+    ctx.clearRect(0, 0, W, H); strokes.forEach(st => drawStroke(ctx, st, W, H));
+  });
+  const end = () => { current = null; };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => cv.addEventListener(t, end));
+  $('#inkUndo').onclick = () => { strokes.pop(); redraw(); sync(); };
+  $('#inkClear').onclick = () => { strokes.length = 0; redraw(); sync(); };
+  document.querySelectorAll('.ink-color').forEach(b => b.addEventListener('click', () => {
+    color = b.dataset.ink;
+    document.querySelectorAll('.ink-color').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-checked', x === b); });
+  }));
+  new ResizeObserver(size).observe(cv);
+
+  return {
+    get empty() { return strokes.length === 0; },
+    clear() { strokes.length = 0; redraw(); sync(); },
+    /** Transparent PNG of just the ink, cropped to what was drawn. */
+    async toBlob() {
+      const OUT_W = 1000, OUT_H = Math.round(OUT_W * (H / W || .6));
+      const scale = OUT_W / (W || OUT_W);
+      const off = document.createElement('canvas');
+      off.width = OUT_W; off.height = OUT_H;
+      const c = off.getContext('2d');
+      strokes.forEach(st => drawStroke(c, st, OUT_W, OUT_H, scale));
+      // crop to the ink's bounding box (+ margin) so cards stay compact
+      let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+      strokes.forEach(st => st.pts.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }));
+      const m = 24;
+      const sx = Math.max(0, x0 * OUT_W - m), sy = Math.max(0, y0 * OUT_H - m);
+      const sw = Math.min(OUT_W - sx, (x1 - x0) * OUT_W + m * 2), sh = Math.min(OUT_H - sy, (y1 - y0) * OUT_H + m * 2);
+      const crop = document.createElement('canvas');
+      crop.width = Math.max(1, Math.round(sw)); crop.height = Math.max(1, Math.round(sh));
+      crop.getContext('2d').drawImage(off, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+      return new Promise(res => crop.toBlob(res, 'image/png'));
+    },
+  };
+})();
+
+/* ---- Type / Write-by-hand tabs ---- */
+const tabs = [$('#tabType'), $('#tabInk')], panels = [$('#panelType'), $('#panelInk')];
+function selectTab(i, focus = false) {
+  tabs.forEach((t, k) => { const on = k === i; t.classList.toggle('active', on); t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; panels[k].hidden = !on; });
+  $('.mode-tabs').dataset.active = i;
+  if (focus) tabs[i].focus();
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => selectTab(i));
+  t.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); selectTab(1 - i, true); } });
+});
+
 const wishMsg = $('#wishMsg'), wishStatus = $('#wishStatus');
+const formShownAt = Date.now();
+let sendingWish = false;
 wishMsg.addEventListener('input', () => { $('#wishCount').textContent = `${wishMsg.value.length} / 300`; });
 $('#wishForm').addEventListener('submit', async e => {
   e.preventDefault();
+  if (sendingWish) return;                                  // no double submissions
   const name = $('#wishName').value.trim(), message = wishMsg.value.trim();
   wishStatus.className = 'form-status';
-  if ($('#wishTrap').value) return;                         // bot
-  if (!name) { wishStatus.textContent = 'Please write your name.'; wishStatus.classList.add('err'); $('#wishName').focus(); return; }
-  if (message.length < 3) { wishStatus.textContent = 'Please write a few words.'; wishStatus.classList.add('err'); wishMsg.focus(); return; }
-  const btn = $('#wishSend'); btn.disabled = true; btn.textContent = 'Sending…';
+  const fail = (text, el) => { wishStatus.textContent = text; wishStatus.classList.add('err'); el?.focus(); };
+  if (!name) return fail('Please write your name.', $('#wishName'));
+  if (ink.empty && message.length < 3) {
+    if (!panels[0].hidden) return fail('Please write a few words — or switch to “Write by hand”.', wishMsg);
+    return fail('Write or draw something on the pad first.', tabs[1]);
+  }
+  const btn = $('#wishSend'); sendingWish = true; btn.disabled = true; btn.textContent = 'Sending…';
   try {
-    const entry = await api('/guestbook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, message }) });
-    entry._fresh = true;
-    wishes.unshift(entry); renderBoard();
-    e.target.reset(); $('#wishCount').textContent = '0 / 300';
-    wishStatus.textContent = 'Thank you — your message is on our board ♡'; wishStatus.classList.add('ok');
+    const form = new FormData();
+    form.append('name', name);
+    form.append('message', message);
+    form.append('website', $('#wishTrap').value);
+    form.append('t', String(Date.now() - formShownAt));
+    if (!ink.empty) form.append('drawing', await ink.toBlob(), 'message.png');
+    const r = await fetch(CONFIG.api + '/guestbook', { method: 'POST', body: form });
+    if (!r.ok) throw new Error(r.status === 429 ? 'rate-limited' : 'HTTP ' + r.status);
+    const entry = await r.json();
+    e.target.reset(); ink.clear(); $('#wishCount').textContent = '0 / 300';
+    if (entry.pending) {
+      wishStatus.textContent = 'Thank you ♡ Your message will appear on the board shortly.';
+    } else {
+      entry._fresh = true;
+      wishes.unshift(entry); wishesShown = Math.max(wishesShown, 6); renderBoard();
+      wishStatus.textContent = 'Thank you — your message is on our board ♡';
+    }
+    wishStatus.classList.add('ok');
     if (!REDUCED) burst(btn.getBoundingClientRect(), 24);
   } catch (err) {
     console.warn('[wish]', err);
-    wishStatus.textContent = 'Your message couldn’t be sent. Please try again.'; wishStatus.classList.add('err');
-  } finally { btn.disabled = false; btn.textContent = 'Send with love'; }
+    fail(err.message === 'rate-limited' ? 'Too many messages in a short time — please try again in a few minutes.' : 'Your message couldn’t be sent. Please check your connection and try again.');
+  } finally { sendingWish = false; btn.disabled = false; btn.textContent = 'Send with love'; }
 });
 
 /* ============================================================

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "check": "node --check script.js && tsc -p tsconfig.json",
-    "build": "rm -rf dist && mkdir dist && cp -r index.html script.js style.css site.webmanifest favicon.svg favicon-32.png apple-touch-icon.png icon-192.png icon-512.png assets dist/"
+    "build": "rm -rf dist && mkdir dist && cp -r index.html admin.html script.js style.css site.webmanifest favicon.svg favicon-32.png apple-touch-icon.png icon-192.png icon-512.png assets dist/"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2"

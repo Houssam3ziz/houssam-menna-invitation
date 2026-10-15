@@ -247,14 +247,52 @@
         <span>Your name</span>
         <input type="text" name="name" id="wishName" maxlength="40" autocomplete="name" required>
       </label>
-      <label class="field">
-        <span>Your message</span>
-        <textarea name="message" id="wishMsg" rows="4" maxlength="300" required></textarea>
-        <small class="counter" id="wishCount">0 / 300</small>
-      </label>
+      <div class="field">
+        <span id="msgLabel">Your message</span>
+        <div class="mode-tabs" role="tablist" aria-labelledby="msgLabel">
+          <button type="button" role="tab" id="tabType" aria-controls="panelType" aria-selected="true" class="mode-tab active">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
+            Type
+          </button>
+          <button type="button" role="tab" id="tabInk" aria-controls="panelInk" aria-selected="false" class="mode-tab" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c3-1 4-3 6-6l7-7a2.1 2.1 0 0 0-3-3l-7 7c-3 2-5 3-6 6z"/><path d="M13 6l3 3"/></svg>
+            Write by hand
+          </button>
+          <span class="mode-pill" aria-hidden="true"></span>
+        </div>
+
+        <div class="mode-panel" id="panelType" role="tabpanel" aria-labelledby="tabType">
+          <textarea name="message" id="wishMsg" rows="4" maxlength="300" aria-labelledby="msgLabel"></textarea>
+          <small class="counter" id="wishCount">0 / 300</small>
+        </div>
+
+        <div class="mode-panel" id="panelInk" role="tabpanel" aria-labelledby="tabInk" hidden>
+          <div class="ink-pad" id="inkPad">
+            <canvas id="inkCanvas" aria-label="Handwriting area — write or draw with your finger, pen or mouse" role="img"></canvas>
+            <p class="ink-placeholder" id="inkPlaceholder" aria-hidden="true">Write or draw here with your finger ✍</p>
+          </div>
+          <div class="ink-tools">
+            <div class="ink-colors" role="radiogroup" aria-label="Ink colour">
+              <button type="button" role="radio" aria-checked="true" class="ink-color active" data-ink="#5e431a" style="--c:#5e431a" aria-label="Sepia ink"></button>
+              <button type="button" role="radio" aria-checked="false" class="ink-color" data-ink="#a87a2c" style="--c:#a87a2c" aria-label="Gold ink"></button>
+              <button type="button" role="radio" aria-checked="false" class="ink-color" data-ink="#a24d5a" style="--c:#a24d5a" aria-label="Rose ink"></button>
+            </div>
+            <div class="ink-actions">
+              <button type="button" class="ink-btn" id="inkUndo" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo
+              </button>
+              <button type="button" class="ink-btn" id="inkClear" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Clear
+              </button>
+            </div>
+          </div>
+          <small class="ink-note">You can type a few words too — both will be sent together.</small>
+        </div>
+      </div>
       <!-- honeypot: real guests never see or fill this -->
       <input type="text" name="website" id="wishTrap" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true">
       <button type="submit" class="btn-gold" id="wishSend">Send with love</button>
+      <p class="fine">Messages are shown on the board below for everyone visiting the invitation.</p>
       <p class="form-status" id="wishStatus" role="status"></p>
     </form>
 
