@@ -660,3 +660,8 @@ body.lb-open{overflow:hidden}
   .reveal,.g-item,.note{opacity:1!important;transform:none!important}
   .scratch-card::after,.hero-img.breeze{display:none}
 }
+
+/* Hero monogram (replaces the written names) */
+.hero-monogram{width:clamp(120px,36vw,160px);margin:14px auto 0;filter:drop-shadow(0 0 10px rgba(255,248,230,.95)) drop-shadow(0 1px 0 rgba(255,255,255,.8))}
+.opening-sec #footDate{margin-top:26px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
