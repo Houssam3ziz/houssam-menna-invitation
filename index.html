@@ -6,9 +6,18 @@
 <title>Hossam & Menna</title>
 <meta name="description" content="You are invited to the wedding of Hossam & Menna">
 <meta name="theme-color" content="#f6f1e7">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Hossam &amp; Menna — Wedding Invitation">
+<meta property="og:description" content="Wednesday, 16 December 2026 · 7:00 PM · Cairo">
+<meta property="og:image" content="assets/hero.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Cinzel:wght@400;500&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@400;500;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="locked">
@@ -93,7 +102,7 @@
       <p class="small-caps rise d1">Welcome to the</p>
       <p class="script-sm rise d2">Wedding Celebration</p>
       <p class="of rise d3">of</p>
-      <h1 class="names rise d4"><span>Hossam</span><span class="amp">&amp;</span><span class="n2">Menna</span></h1>
+      <h1 class="names rise d4"><span class="n1">Hossam</span><span class="amp" aria-label="and">&amp;</span><span class="n2">Menna</span></h1>
     </div>
     <a href="#date" class="scroll-down rise d5">
       <span>Scroll down</span>
@@ -105,22 +114,30 @@
   <section id="date" class="sec date-sec">
     <img src="assets/floral-left.png" class="fl fl-l" alt="" aria-hidden="true"><img src="assets/floral-right.png" class="fl fl-r" alt="" aria-hidden="true">
     <h2 class="script-title reveal">The Date</h2>
-    <p class="hint reveal">✦ Scratch to reveal the date ✦</p>
-    <div class="scratch-row reveal">
-      <div class="scratch-item">
-        <div class="scratch-card"><span class="val" id="dDay">16</span><canvas></canvas></div>
-        <small>Day</small>
+    <p class="hint reveal">✦ Scratch the gold to reveal ✦</p>
+    <div class="scratch-panel reveal" id="scratchPanel">
+      <div class="scratch-row">
+        <div class="scratch-item">
+          <div class="scratch-card"><span class="val" id="dDay">16</span><canvas aria-hidden="true"></canvas></div>
+          <small>Day</small>
+        </div>
+        <div class="scratch-item">
+          <div class="scratch-card"><span class="val val-sm" id="dMonth">December</span><canvas aria-hidden="true"></canvas></div>
+          <small>Month</small>
+        </div>
+        <div class="scratch-item">
+          <div class="scratch-card"><span class="val" id="dYear">2026</span><canvas aria-hidden="true"></canvas></div>
+          <small>Year</small>
+        </div>
       </div>
-      <div class="scratch-item">
-        <div class="scratch-card"><span class="val val-sm" id="dMonth">December</span><canvas></canvas></div>
-        <small>Month</small>
-      </div>
-      <div class="scratch-item">
-        <div class="scratch-card"><span class="val" id="dYear">2026</span><canvas></canvas></div>
-        <small>Year</small>
+      <div class="scratch-item scratch-item-wide">
+        <div class="scratch-card scratch-card-wide"><span class="val val-time" id="dTime">7:00 PM</span><canvas aria-hidden="true"></canvas></div>
+        <small>Time</small>
       </div>
     </div>
-    <p class="weekday reveal" id="dWeekday"></p>
+    <p class="weekday" id="dWeekday" aria-live="polite"></p>
+    <p class="when-full" id="dFull"></p>
+    <button type="button" class="link-btn reveal" id="revealAll">Reveal without scratching</button>
   </section>
 
   <!-- ============ INVITATION CARD ============ -->
@@ -139,10 +156,10 @@
       <div class="arch-content">
         <p class="bismillah">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
         <p class="caps">You are invited to the<br>wedding ceremony of</p>
-        <h3 class="script-name">Hossam</h3>
+        <h3 class="display-name">Hossam</h3>
         <p class="parent" id="groomParents"></p>
         <p class="with">with</p>
-        <h3 class="script-name">Menna</h3>
+        <h3 class="display-name">Menna</h3>
         <p class="parent" id="brideParents"></p>
         <div class="divider"><i></i><b>✦</b><i></i></div>
         <p class="dear">Dear Friends and Family</p>
@@ -177,6 +194,8 @@
     <div class="divider reveal"><i></i><b>✦</b><i></i></div>
     <p class="city reveal" id="city">CAIRO</p>
     <p class="venue reveal" id="venue"></p>
+    <p class="venue-addr reveal" id="venueAddr"></p>
+    <p class="venue-time reveal" id="venueTime"></p>
     <div class="venue-img reveal"></div>
     <div class="map-wrap reveal">
       <a class="open-maps" id="openMaps" target="_blank" rel="noopener">Open in Maps ↗</a>
@@ -184,29 +203,87 @@
     </div>
   </section>
 
-  <!-- ============ DRESS CODE ============ -->
-  <section class="sec dress-sec">
-    <h2 class="script-title reveal">Dress Code</h2>
+  <!-- ============ SHARE YOUR PHOTOS ============ -->
+  <section id="share" class="sec upload-sec">
+    <h2 class="script-title reveal">Share Your Moments</h2>
     <div class="divider reveal"><i></i><b>✦</b><i></i></div>
-    <img src="assets/dresscode.webp" alt="Guests dressed in pastel formal attire" class="dress-img reveal">
-    <p class="body-txt reveal">We kindly invite our guests to dress in</p>
-    <p class="dress-style reveal">Elegant Formal Attire</p>
-    <p class="body-txt reveal">in soft pastel shades.</p>
-    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
-    <p class="caps reveal">Recommended shades</p>
-    <div class="shades reveal">
-      <span style="--c:#cdbde6"></span><span style="--c:#f6c9a8"></span><span style="--c:#f5e7a1"></span>
-      <span style="--c:#efc3cb"></span><span style="--c:#bcd0e6"></span><span style="--c:#d7d1c4"></span>
+    <p class="body-txt reveal">Captured a beautiful moment? Add it to our album so we can relive the night through your eyes.</p>
+
+    <div class="upload-card reveal" id="uploader">
+      <input type="file" id="photoInput" accept="image/*,.heic,.heif" multiple class="visually-hidden">
+      <label for="photoInput" class="drop" id="dropZone">
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.3l1.1-1.6c.3-.4.7-.6 1.2-.6h3.8c.5 0 .9.2 1.2.6L16.2 5h1.3A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12" r="3.4"/></svg>
+        </span>
+        <span class="drop-title">Choose photos</span>
+        <span class="drop-sub">Up to 10 at a time · JPG, PNG, HEIC</span>
+      </label>
+      <ul class="queue" id="queue" aria-live="polite"></ul>
+      <button type="button" class="btn-gold" id="uploadBtn" hidden>Upload photos</button>
+      <p class="upload-status" id="uploadStatus" role="status"></p>
+      <p class="fine">Photos are resized and their location data removed before upload.</p>
     </div>
-    <p class="body-txt small reveal">Please avoid wearing white &amp; ivory —<br>reserved for the bride.</p>
   </section>
+
+  <!-- ============ PHOTO GALLERY ============ -->
+  <section id="gallery" class="sec gallery-sec">
+    <h2 class="script-title reveal">Photo Gallery</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <p class="caps reveal" id="galleryCount">Shared by our loved ones</p>
+    <div class="gallery-state" id="galleryState" aria-live="polite"></div>
+    <ul class="gallery" id="galleryGrid"></ul>
+    <button type="button" class="btn-outline" id="galleryMore" hidden>Show more</button>
+    <a href="#share" class="btn-outline gallery-add reveal">Add your photos</a>
+  </section>
+
+  <!-- ============ MESSAGE BOARD ============ -->
+  <section id="wishes" class="sec wishes-sec">
+    <h2 class="script-title reveal">Leave Us a Message</h2>
+    <div class="divider reveal"><i></i><b>✦</b><i></i></div>
+    <p class="body-txt reveal">A wish, a prayer, a memory — we'll keep every word.</p>
+
+    <form class="wish-form reveal" id="wishForm" novalidate>
+      <label class="field">
+        <span>Your name</span>
+        <input type="text" name="name" id="wishName" maxlength="40" autocomplete="name" required>
+      </label>
+      <label class="field">
+        <span>Your message</span>
+        <textarea name="message" id="wishMsg" rows="4" maxlength="300" required></textarea>
+        <small class="counter" id="wishCount">0 / 300</small>
+      </label>
+      <!-- honeypot: real guests never see or fill this -->
+      <input type="text" name="website" id="wishTrap" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true">
+      <button type="submit" class="btn-gold" id="wishSend">Send with love</button>
+      <p class="form-status" id="wishStatus" role="status"></p>
+    </form>
+
+    <div class="board" id="board" aria-live="polite"></div>
+    <button type="button" class="btn-outline" id="boardMore" hidden>Show more messages</button>
+  </section>
+
+  <!-- ============ LIGHTBOX ============ -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+    <button type="button" class="lb-close" id="lbClose" aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <button type="button" class="lb-nav lb-prev" id="lbPrev" aria-label="Previous photo">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <figure class="lb-figure"><img id="lbImg" alt="Guest photo"></figure>
+    <button type="button" class="lb-nav lb-next" id="lbNext" aria-label="Next photo">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <p class="lb-count" id="lbCount"></p>
+  </div>
 
   <!-- ============ CLOSING ============ -->
   <section class="sec closing-sec">
     <img src="assets/floral-left.png" class="fl fl-l" alt="" aria-hidden="true"><img src="assets/floral-right.png" class="fl fl-r" alt="" aria-hidden="true">
     <p class="arabic reveal">وَمِنْ آيَاتِهِ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً</p>
     <p class="body-txt reveal">Your presence is the greatest gift.<br>We can’t wait to celebrate with you.</p>
-    <p class="monogram reveal">H <span>&amp;</span> M</p>
+    <div class="monogram-wrap reveal" id="closingMonogram" role="img" aria-label="Hossam and Menna monogram"></div>
+    <p class="closing-names reveal">Hossam <span>&amp;</span> Menna</p>
     <p class="caps reveal" id="footDate"></p>
   </section>
 </main>
