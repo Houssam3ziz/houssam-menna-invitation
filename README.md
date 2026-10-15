@@ -1,4 +1,4 @@
-# Hossam & Menna — Wedding Invitation
+# Houssam & Menna — Wedding Invitation
 
 Static site (`index.html`, `style.css`, `script.js`, `assets/`) plus two Vercel Functions in `api/`.
 

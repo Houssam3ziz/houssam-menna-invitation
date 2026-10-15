@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.1.0",
   "type": "module",
-  "description": "Hossam & Menna \u2014 wedding invitation (static site + Vercel Functions for photos and messages)",
+  "description": "Houssam & Menna \u2014 wedding invitation (static site + Vercel Functions for photos and messages)",
   "scripts": {
     "dev": "python3 -m http.server 5173",
     "check": "node --check script.js && tsc -p tsconfig.json",
