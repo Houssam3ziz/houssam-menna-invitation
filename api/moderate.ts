@@ -9,7 +9,7 @@
  * variable the endpoint is disabled entirely.
  */
 import { del, put } from '@vercel/blob'
-import { adminAuthorised as authorised, error, json, rateLimited, readEntries, readJson, storageReady } from './_lib/http.js'
+import { ACCESS, adminAuthorised as authorised, error, json, rateLimited, readEntries, readJson, storageReady } from './_lib/http.js'
 
 export async function GET(request: Request): Promise<Response> {
   if (rateLimited(request, 'admin', 30, 60_000)) return error('rate-limited', 429)
@@ -34,16 +34,16 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     if (body?.action === 'approve' && inPending) {
-      const { blobUrl, ...entry } = inPending
+      const { pathname, ...entry } = inPending
       await put(`guestbook/${id}.json`, JSON.stringify(entry), {
-        access: 'public', contentType: 'application/json', addRandomSuffix: false, cacheControlMaxAge: 60,
+        access: ACCESS, contentType: 'application/json', addRandomSuffix: false, cacheControlMaxAge: 60,
       })
-      await del(blobUrl)
+      await del(pathname)
       return json({ ok: true })
     }
     const target = body?.action === 'reject' ? inPending : body?.action === 'remove' ? inPublished : undefined
     if (target) {
-      await del([target.blobUrl, ...(target.drawing ? [target.drawing] : [])])
+      await del([target.pathname, ...(target.drawing ? [`ink/${target.id}.png`] : [])])
       return json({ ok: true })
     }
     return error('not-found', 404)

@@ -29,7 +29,9 @@ export interface Notice {
 const escapeHtml = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c)
 
-function render({ subject, lines, images = [] }: Notice): { html: string; text: string } {
+function render({ subject, lines, images: raw = [] }: Notice): { html: string; text: string } {
+  // Media is served by the site itself (/api/media), so emails need absolute links.
+  const images = raw.map((src) => (src.startsWith('/') ? (SITE_URL ? SITE_URL + src : '') : src)).filter(Boolean)
   const admin = SITE_URL ? `${SITE_URL}/admin.html` : ''
   const text = [...lines, ...images, '', admin && `Admin: ${admin}`].filter((l) => l !== '').join('\n')
   const html = `<!doctype html><html><body style="margin:0;background:#fdfbf7;font-family:Georgia,serif;color:#5f4b30">

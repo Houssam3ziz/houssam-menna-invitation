@@ -1,4 +1,4 @@
-import { list } from '@vercel/blob'
+import { get, list } from '@vercel/blob'
 
 /**
  * Small helpers shared by the Vercel Functions in /api.
@@ -90,6 +90,21 @@ export function adminAuthorised(request: Request): boolean {
   return diff === 0
 }
 
+/**
+ * The Blob store is PRIVATE: nothing in it has a public URL. Files reach the
+ * browser only through /api/media, which streams an allow-listed pathname.
+ */
+export const ACCESS = 'private' as const
+export const MEDIA_PREFIXES = ['guests/', 'thumbs/', 'ink/'] as const
+export const mediaUrl = (pathname: string): string => `/api/media?p=${encodeURIComponent(pathname)}`
+
+/** Reads a private JSON blob by pathname, bypassing the CDN so edits show at once. */
+export async function readJsonBlob<T>(pathname: string): Promise<T | null> {
+  const res = await get(pathname, { access: ACCESS, useCache: false })
+  if (!res || res.statusCode !== 200) return null
+  return (await new Response(res.stream).json()) as T
+}
+
 /** Moderation is opt-in: set MODERATE_WISHES=true in Vercel to hold new messages for approval. */
 export const moderationOn = (): boolean => process.env.MODERATE_WISHES === 'true'
 
@@ -101,7 +116,7 @@ export interface GuestbookEntry {
   createdAt: string
 }
 
-export async function readEntries(prefix: string, max = 80): Promise<Array<GuestbookEntry & { blobUrl: string }>> {
+export async function readEntries(prefix: string, max = 80): Promise<Array<GuestbookEntry & { pathname: string }>> {
   const { blobs } = await list({ prefix, limit: 1000 })
   const newest = blobs
     .filter((b) => b.pathname.endsWith('.json'))
@@ -110,13 +125,13 @@ export async function readEntries(prefix: string, max = 80): Promise<Array<Guest
   const entries = await Promise.all(
     newest.map(async (blob) => {
       try {
-        const r = await fetch(blob.url, { cache: 'no-store' })
-        return r.ok ? { ...((await r.json()) as GuestbookEntry), blobUrl: blob.url } : null
+        const entry = await readJsonBlob<GuestbookEntry>(blob.pathname)
+        return entry ? { ...entry, pathname: blob.pathname } : null
       } catch {
         return null
       }
     }),
   )
-  return entries.filter((e): e is GuestbookEntry & { blobUrl: string } => e !== null)
+  return entries.filter((e): e is GuestbookEntry & { pathname: string } => e !== null)
 }
 

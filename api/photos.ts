@@ -10,7 +10,7 @@
  * the browser: BLOB_READ_WRITE_TOKEN is injected by Vercel at runtime.
  */
 import { list, put } from '@vercel/blob'
-import { SHORT_CDN_CACHE, error, json, newId, rateLimited, readJson, sniffImage, storageReady } from './_lib/http.js'
+import { ACCESS, SHORT_CDN_CACHE, error, mediaUrl, json, newId, rateLimited, readJson, sniffImage, storageReady } from './_lib/http.js'
 import { notify } from './_lib/notify.js'
 
 const PREFIX = 'guests/'
@@ -30,7 +30,7 @@ interface GuestPhoto {
 
 const toBuffer = (b: Uint8Array) => Buffer.from(b.buffer, b.byteOffset, b.byteLength)
 const opts = (contentType: string) => ({
-  access: 'public' as const,
+  access: ACCESS,
   contentType,
   addRandomSuffix: false,
   // Immutable files: let the CDN keep them for a year.
@@ -45,7 +45,7 @@ export async function GET(): Promise<Response> {
     let cursor: string | undefined
     do {
       const page = await list({ prefix: THUMBS, limit: 1000, cursor })
-      for (const blob of page.blobs) thumbs.set(blob.pathname.slice(THUMBS.length), blob.url)
+      for (const blob of page.blobs) thumbs.set(blob.pathname.slice(THUMBS.length), mediaUrl(blob.pathname))
       cursor = page.hasMore ? page.cursor : undefined
     } while (cursor)
 
@@ -56,8 +56,8 @@ export async function GET(): Promise<Response> {
         const key = blob.pathname.slice(PREFIX.length)
         photos.push({
           id: blob.pathname,
-          url: blob.url,
-          thumb: thumbs.get(key) ?? blob.url,
+          url: mediaUrl(blob.pathname),
+          thumb: thumbs.get(key) ?? mediaUrl(blob.pathname),
           createdAt: new Date(blob.uploadedAt).toISOString(),
         })
       }
@@ -111,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
       thumb && thumbKind
         ? await put(`${THUMBS}${key}.${kind.ext}`, toBuffer(thumb), opts(thumbKind.type))
         : null
-    const result: GuestPhoto = { id: full.pathname, url: full.url, thumb: small?.url ?? full.url, createdAt: new Date().toISOString() }
+    const result: GuestPhoto = { id: full.pathname, url: mediaUrl(full.pathname), thumb: mediaUrl(small?.pathname ?? full.pathname), createdAt: new Date().toISOString() }
     return json(result, 201, { 'Cache-Control': 'no-store' })
   } catch (cause) {
     console.error('[api/photos] write failed', cause)
@@ -138,11 +138,5 @@ async function notifyBatch(request: Request): Promise<Response> {
 }
 
 function isOwnThumb(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length > 400) return false
-  try {
-    const u = new URL(value)
-    return u.protocol === 'https:' && u.hostname.endsWith('.public.blob.vercel-storage.com') && /^\/(thumbs|guests)\//.test(u.pathname)
-  } catch {
-    return false
-  }
+  return typeof value === 'string' && value.length < 300 && /^\/api\/media\?p=(thumbs|guests)%2F[\w%.-]+$/.test(value)
 }

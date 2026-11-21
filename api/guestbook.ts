@@ -13,10 +13,12 @@
  */
 import { put } from '@vercel/blob'
 import {
+  ACCESS,
   SHORT_CDN_CACHE,
   cleanText,
   error,
   json,
+  mediaUrl,
   moderationOn,
   newId,
   readEntries,
@@ -34,7 +36,7 @@ const LIMITS = { name: 40, messageMin: 3, messageMax: 300, drawingBytes: 700 * 1
 export async function GET(): Promise<Response> {
   if (!storageReady()) return error('storage-unavailable', 503)
   try {
-    const entries = (await readEntries(PUBLISHED, 80)).map(({ blobUrl: _u, ...e }) => e)
+    const entries = (await readEntries(PUBLISHED, 80)).map(({ pathname: _p, ...e }) => e)
     return json(entries, 200, { 'Cache-Control': SHORT_CDN_CACHE })
   } catch (cause) {
     console.error('[api/guestbook] list failed', cause)
@@ -84,15 +86,15 @@ export async function POST(request: Request): Promise<Response> {
   try {
     if (drawing) {
       const ink = await put(`ink/${id}.png`, Buffer.from(drawing.buffer, drawing.byteOffset, drawing.byteLength), {
-        access: 'public',
+        access: ACCESS,
         contentType: 'image/png',
         addRandomSuffix: false,
         cacheControlMaxAge: 60 * 60 * 24 * 365,
       })
-      entry.drawing = ink.url
+      entry.drawing = mediaUrl(ink.pathname)
     }
     await put(`${pending ? PENDING : PUBLISHED}${id}.json`, JSON.stringify(entry), {
-      access: 'public',
+      access: ACCESS,
       contentType: 'application/json',
       addRandomSuffix: false,
       cacheControlMaxAge: 60,
