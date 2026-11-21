@@ -3,6 +3,7 @@
  *
  *   GET  /api/moderate            → { pending: [...], published: [...] }
  *   POST /api/moderate {id, action: 'approve' | 'reject' | 'remove'}
+ *   POST /api/moderate {id: 'guests/…jpg', action: 'remove-photo'}  (photo + its thumbnail)
  *
  * Every call needs the header `x-admin-key` matching the ADMIN_KEY
  * environment variable (set it in Vercel, ≥ 16 characters). Without that
@@ -26,6 +27,18 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = await readJson<{ id?: string; action?: string }>(request)
   const id = body?.id ?? ''
+
+  if (body?.action === 'remove-photo') {
+    if (!/^guests\/\d{4}-\d{2}-\d{2}\/photo_[a-z0-9]+_[a-f0-9]{8,32}\.(jpg|png|webp)$/.test(id)) return error('invalid-id', 400)
+    try {
+      await del([id, id.replace(/^guests\//, 'thumbs/')])
+      return json({ ok: true })
+    } catch (cause) {
+      console.error('[api/moderate] photo delete failed', cause)
+      return error('failed', 502)
+    }
+  }
+
   if (!/^msg_[a-z0-9]+_[a-f0-9]{8,32}$/.test(id)) return error('invalid-id', 400)
 
   const [pending, published] = await Promise.all([readEntries('guestbook-pending/', 1000), readEntries('guestbook/', 1000)])

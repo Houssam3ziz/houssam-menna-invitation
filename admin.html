@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Messages — moderation</title>
+<title>Messages &amp; photos — admin</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
   :root{--bg:#fdfbf7;--ink:#5f4b30;--gold:#b8894a;--gold-ink:#7a5a26;--muted:#7f6d53;--line:#efe4cc}
@@ -24,17 +24,22 @@
   .meta{font-size:14px;color:var(--muted)}
   .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
   #status{min-height:1.5em;color:var(--muted)}
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .photo{border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px;display:flex;flex-direction:column;gap:6px}
+  .photo img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in}
+  .photo button{min-height:36px;padding:6px 10px}
 </style>
 </head>
 <body>
 <main>
-  <h1>Messages</h1>
-  <p class="sub">Approve or remove guest messages. Only works with the ADMIN_KEY set in Vercel.</p>
+  <h1>Messages &amp; photos</h1>
+  <p class="sub">Approve or remove guest messages and photos. Only works with the ADMIN_KEY set in Vercel.</p>
   <form id="login"><input type="password" id="key" placeholder="Admin key" autocomplete="current-password" required><button class="ok">Open</button></form>
   <p id="status" role="status"></p>
   <section id="lists" hidden>
     <h2>Waiting for approval <span id="nPending"></span></h2><div id="pending"></div>
     <h2>Published <span id="nPublished"></span></h2><div id="published"></div>
+    <h2>Guest photos <span id="nPhotos"></span></h2><div class="photos" id="photos"></div>
   </section>
 </main>
 <script>
@@ -64,7 +69,24 @@ async function load() {
     $('#nPending').textContent = `(${pending.length})`; $('#nPublished').textContent = `(${published.length})`;
     $('#lists').hidden = false; $('#login').hidden = true; $('#status').textContent = '';
     sessionStorage.setItem('hm-admin', KEY);
+    loadPhotos();
   } catch (err) { $('#status').textContent = err.message; $('#login').hidden = false; }
+}
+async function loadPhotos() {
+  const photos = await fetch('/api/photos?fresh=' + Date.now()).then(r => r.ok ? r.json() : []).catch(() => []);
+  $('#nPhotos').textContent = `(${photos.length})`;
+  $('#photos').replaceChildren(...photos.map(p => {
+    const d = document.createElement('div'); d.className = 'photo';
+    const img = new Image(); img.src = p.thumb; img.alt = 'Guest photo'; img.loading = 'lazy'; img.onclick = () => open(p.url, '_blank');
+    const b = document.createElement('button'); b.className = 'no'; b.textContent = 'Remove';
+    b.onclick = async () => {
+      if (!confirm('Remove this photo for everyone? This cannot be undone.')) return;
+      b.disabled = true;
+      try { await call({ method: 'POST', body: JSON.stringify({ id: p.id, action: 'remove-photo' }) }); d.remove(); }
+      catch (err) { $('#status').textContent = err.message; b.disabled = false; }
+    };
+    d.append(img, b); return d;
+  }));
 }
 $('#login').onsubmit = e => { e.preventDefault(); KEY = $('#key').value.trim(); load(); };
 if (KEY) load();
