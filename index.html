@@ -232,7 +232,7 @@
       <ul class="queue" id="queue" aria-live="polite"></ul>
       <button type="button" class="btn-gold" id="uploadBtn" hidden>Upload photos</button>
       <p class="upload-status" id="uploadStatus" role="status"></p>
-      <p class="fine">Photos are resized and their location data removed before upload.</p>
+      <p class="fine">Photos appear in the gallery after Houssam &amp; Menna approve them. They are resized and their location data removed before upload.</p>
     </div>
   </section>
 
@@ -251,7 +251,7 @@
   <section id="wishes" class="sec wishes-sec">
     <h2 class="script-title reveal">Leave Us a Message</h2>
     <div class="divider reveal"><i></i><b>✦</b><i></i></div>
-    <p class="body-txt reveal">A wish, a prayer, a memory — sent only to us, and we'll keep every word.</p>
+    <p class="body-txt reveal">A wish, a prayer, a memory — we'll keep every word.</p>
 
     <form class="wish-form reveal" id="wishForm" novalidate>
       <label class="field">
@@ -303,10 +303,12 @@
       <!-- honeypot: real guests never see or fill this -->
       <input type="text" name="website" id="wishTrap" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true">
       <button type="submit" class="btn-gold" id="wishSend">Send with love</button>
-      <p class="fine">Your message is private — only Houssam &amp; Menna will read it.</p>
+      <p class="fine">Messages appear on the board below after Houssam &amp; Menna approve them.</p>
       <p class="form-status" id="wishStatus" role="status"></p>
     </form>
 
+    <div class="board" id="board" aria-live="polite"></div>
+    <button type="button" class="btn-outline" id="boardMore" hidden>Show more messages</button>
   </section>
 
   <!-- ============ LIGHTBOX ============ -->

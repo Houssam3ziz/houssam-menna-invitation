@@ -3,21 +3,35 @@
  *
  *   GET  /api/moderate            → { pending: [...], published: [...] }
  *   POST /api/moderate {id, action: 'approve' | 'reject' | 'remove'}
- *   POST /api/moderate {id: 'guests/…jpg', action: 'remove-photo'}  (photo + its thumbnail)
+ *   POST /api/moderate {id: '<photo pathname>', action: 'approve-photo' | 'reject-photo' | 'remove-photo'}
+ *
+ * GET also returns { pendingPhotos, photos } — photos waiting for approval and
+ * photos already in the public gallery.
  *
  * Every call needs the header `x-admin-key` matching the ADMIN_KEY
  * environment variable (set it in Vercel, ≥ 16 characters). Without that
  * variable the endpoint is disabled entirely.
  */
 import { del, put } from '@vercel/blob'
+import { approvePhoto, deletePhoto, listPhotos, parsePhotoId } from './_lib/photos.js'
 import { ACCESS, adminAuthorised as authorised, error, json, rateLimited, readEntries, readJson, storageReady } from './_lib/http.js'
 
 export async function GET(request: Request): Promise<Response> {
   if (rateLimited(request, 'admin', 30, 60_000)) return error('rate-limited', 429)
   if (!authorised(request)) return error('unauthorised', 401)
   if (!storageReady()) return error('storage-unavailable', 503)
-  const [pending, published] = await Promise.all([readEntries('guestbook-pending/', 200), readEntries('guestbook/', 200)])
-  return json({ pending, published }, 200, { 'Cache-Control': 'no-store' })
+  try {
+    const [pending, published, pendingPhotos, photos] = await Promise.all([
+      readEntries('guestbook-pending/', 200),
+      readEntries('guestbook/', 200),
+      listPhotos('pending'),
+      listPhotos('approved'),
+    ])
+    return json({ pending, published, pendingPhotos, photos }, 200, { 'Cache-Control': 'no-store' })
+  } catch (cause) {
+    console.error('[api/moderate] list failed', cause)
+    return error('list-failed', 502)
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -28,13 +42,16 @@ export async function POST(request: Request): Promise<Response> {
   const body = await readJson<{ id?: string; action?: string }>(request)
   const id = body?.id ?? ''
 
-  if (body?.action === 'remove-photo') {
-    if (!/^guests\/\d{4}-\d{2}-\d{2}\/photo_[a-z0-9]+_[a-f0-9]{8,32}\.(jpg|png|webp)$/.test(id)) return error('invalid-id', 400)
+  if (body?.action === 'approve-photo' || body?.action === 'reject-photo' || body?.action === 'remove-photo') {
+    const photo = parsePhotoId(id)
+    const expected = body.action === 'remove-photo' ? 'approved' : 'pending'
+    if (!photo || photo.area !== expected) return error('invalid-id', 400)
     try {
-      await del([id, id.replace(/^guests\//, 'thumbs/')])
+      if (body.action === 'approve-photo') await approvePhoto(photo.key)
+      else await deletePhoto(photo.area, photo.key)
       return json({ ok: true })
     } catch (cause) {
-      console.error('[api/moderate] photo delete failed', cause)
+      console.error('[api/moderate] photo action failed', body.action, cause)
       return error('failed', 502)
     }
   }

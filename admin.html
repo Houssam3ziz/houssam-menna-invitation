@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Messages &amp; photos — admin</title>
+<title>Approve messages &amp; photos — admin</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
   :root{--bg:#fdfbf7;--ink:#5f4b30;--gold:#b8894a;--gold-ink:#7a5a26;--muted:#7f6d53;--line:#efe4cc}
@@ -15,6 +15,7 @@
   h2{font-size:20px;margin:28px 0 10px;color:var(--gold-ink)}
   p.sub{margin:0 0 20px;color:var(--muted)}
   form{display:flex;gap:8px}
+  [hidden]{display:none!important}
   input{flex:1;font:inherit;padding:10px 12px;border:1px solid #e4d4b2;border-radius:10px;background:#fff}
   button{font:500 15px Georgia,serif;padding:10px 16px;border-radius:999px;border:1px solid #e4d4b2;background:#fff;color:var(--gold-ink);cursor:pointer;min-height:42px}
   button.ok{background:var(--gold);border-color:var(--gold);color:#fff}
@@ -27,19 +28,40 @@
   .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
   .photo{border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px;display:flex;flex-direction:column;gap:6px}
   .photo img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block;cursor:zoom-in}
-  .photo button{min-height:36px;padding:6px 10px}
+  .photo .row{margin-top:0;gap:6px}
+  .photo button{flex:1;min-height:36px;padding:6px 8px}
+  .empty{color:var(--muted);font-style:italic;margin:4px 0 8px}
+  .gone{opacity:.35;transition:opacity .25s}
+  .tabs{position:sticky;top:0;z-index:2;display:flex;gap:8px;padding:10px 0;background:var(--bg)}
+  .tab{flex:1;text-align:center;text-decoration:none;color:var(--gold-ink);border:1px solid #e4d4b2;border-radius:999px;padding:8px 10px;background:#fff}
+  .tab b{display:inline-block;min-width:1.6em;margin-left:4px;border-radius:999px;background:var(--gold);color:#fff;font-weight:500;font-size:14px;padding:0 6px}
+  .bulk{margin:0 0 10px}
 </style>
 </head>
 <body>
 <main>
   <h1>Messages &amp; photos</h1>
-  <p class="sub">Private guest messages (only you can see them) and guest photos. Only works with the ADMIN_KEY set in Vercel.</p>
+  <p class="sub">Nothing appears on the invitation until you approve it here.</p>
   <form id="login"><input type="password" id="key" placeholder="Admin key" autocomplete="current-password" required><button class="ok">Open</button></form>
   <p id="status" role="status"></p>
   <section id="lists" hidden>
-    <div id="pendingWrap" hidden><h2>Waiting for approval <span id="nPending"></span></h2><div id="pending"></div></div>
-    <h2>Messages <span id="nPublished"></span></h2><div id="published"></div>
-    <h2>Guest photos <span id="nPhotos"></span></h2><div class="photos" id="photos"></div>
+    <nav class="tabs">
+      <a href="#waiting" class="tab">Waiting <b id="nWaiting">0</b></a>
+      <a href="#onsite" class="tab">On the site <b id="nOnsite">0</b></a>
+    </nav>
+
+    <h2 id="waiting">Photos waiting for approval <span id="nPendingPhotos"></span></h2>
+    <div class="row bulk" id="bulkPhotos" hidden><button class="ok" id="approveAllPhotos">Approve all photos</button></div>
+    <div class="photos" id="pendingPhotos"></div>
+
+    <h2>Messages waiting for approval <span id="nPending"></span></h2>
+    <div id="pending"></div>
+
+    <h2 id="onsite">Photos in the gallery <span id="nPhotos"></span></h2>
+    <div class="photos" id="photos"></div>
+
+    <h2>Messages on the board <span id="nPublished"></span></h2>
+    <div id="published"></div>
   </section>
 </main>
 <script>
@@ -47,47 +69,62 @@ let KEY = sessionStorage.getItem('hm-admin') || '';
 const $ = s => document.querySelector(s);
 const call = (init = {}) => fetch('/api/moderate', { ...init, headers: { 'x-admin-key': KEY, 'Content-Type': 'application/json' } })
   .then(async r => { if (!r.ok) throw new Error(r.status === 401 ? 'Wrong key.' : 'Error ' + r.status); return r.json(); });
-function card(e, actions) {
+const act = (id, action) => call({ method: 'POST', body: JSON.stringify({ id, action }) });
+const empty = text => { const p = document.createElement('p'); p.className = 'empty'; p.textContent = text; return p; };
+
+/** A row of action buttons; `danger` actions ask first because they cannot be undone. */
+function actions(id, list, el) {
+  const row = document.createElement('div'); row.className = 'row';
+  list.forEach(([label, action, cls, danger]) => {
+    const b = document.createElement('button'); b.textContent = label; b.className = cls;
+    b.onclick = async () => {
+      if (danger && !confirm(danger)) return;
+      row.querySelectorAll('button').forEach(x => x.disabled = true);
+      try { await act(id, action); el.classList.add('gone'); setTimeout(load, 250); }
+      catch (err) { $('#status').textContent = err.message; row.querySelectorAll('button').forEach(x => x.disabled = false); }
+    };
+    row.append(b);
+  });
+  return row;
+}
+function card(e, list) {
   const d = document.createElement('div'); d.className = 'card';
   if (e.drawing) { const i = new Image(); i.src = e.drawing; i.alt = 'Handwritten message'; d.append(i); }
   if (e.message) { const p = document.createElement('p'); p.textContent = e.message; p.style.margin = '0'; d.append(p); }
   const m = document.createElement('p'); m.className = 'meta'; m.textContent = `— ${e.name} · ${new Date(e.createdAt).toLocaleString()}`; d.append(m);
-  const row = document.createElement('div'); row.className = 'row';
-  actions.forEach(([label, action, cls]) => {
-    const b = document.createElement('button'); b.textContent = label; b.className = cls;
-    b.onclick = async () => { b.disabled = true; try { await call({ method: 'POST', body: JSON.stringify({ id: e.id, action }) }); load(); } catch (err) { $('#status').textContent = err.message; b.disabled = false; } };
-    row.append(b);
-  });
-  d.append(row); return d;
+  d.append(actions(e.id, list, d)); return d;
 }
+function photo(p, list) {
+  const d = document.createElement('div'); d.className = 'photo';
+  const img = new Image(); img.src = p.thumb; img.alt = 'Guest photo'; img.loading = 'lazy'; img.onclick = () => open(p.url, '_blank');
+  d.append(img, actions(p.id, list, d)); return d;
+}
+const fill = (sel, items, make, none) => $(sel).replaceChildren(...(items.length ? items.map(make) : [empty(none)]));
+
+let PENDING_PHOTOS = [];
 async function load() {
   $('#status').textContent = 'Loading…';
   try {
-    const { pending, published } = await call();
-    $('#pending').replaceChildren(...pending.map(e => card(e, [['Approve', 'approve', 'ok'], ['Reject', 'reject', 'no']])));
-    $('#published').replaceChildren(...published.map(e => card(e, [['Delete', 'remove', 'no']])));
-    $('#nPending').textContent = `(${pending.length})`; $('#pendingWrap').hidden = pending.length === 0; $('#nPublished').textContent = `(${published.length})`;
+    const { pending, published, pendingPhotos, photos } = await call();
+    PENDING_PHOTOS = pendingPhotos;
+    fill('#pendingPhotos', pendingPhotos, p => photo(p, [['Approve', 'approve-photo', 'ok'], ['Reject', 'reject-photo', 'no', 'Delete this photo? It will never appear on the site.']]), 'No photos waiting.');
+    fill('#pending', pending, e => card(e, [['Approve', 'approve', 'ok'], ['Reject', 'reject', 'no', 'Delete this message? It will never appear on the site.']]), 'No messages waiting.');
+    fill('#photos', photos, p => photo(p, [['Remove', 'remove-photo', 'no', 'Remove this photo from the gallery? This cannot be undone.']]), 'No photos on the site yet.');
+    fill('#published', published, e => card(e, [['Remove', 'remove', 'no', 'Remove this message from the board? This cannot be undone.']]), 'No messages on the site yet.');
+    $('#nPendingPhotos').textContent = `(${pendingPhotos.length})`; $('#nPending').textContent = `(${pending.length})`;
+    $('#nPhotos').textContent = `(${photos.length})`; $('#nPublished').textContent = `(${published.length})`;
+    $('#nWaiting').textContent = pendingPhotos.length + pending.length; $('#nOnsite').textContent = photos.length + published.length;
+    $('#bulkPhotos').hidden = pendingPhotos.length < 2;
     $('#lists').hidden = false; $('#login').hidden = true; $('#status').textContent = '';
     sessionStorage.setItem('hm-admin', KEY);
-    loadPhotos();
   } catch (err) { $('#status').textContent = err.message; $('#login').hidden = false; }
 }
-async function loadPhotos() {
-  const photos = await fetch('/api/photos?fresh=' + Date.now()).then(r => r.ok ? r.json() : []).catch(() => []);
-  $('#nPhotos').textContent = `(${photos.length})`;
-  $('#photos').replaceChildren(...photos.map(p => {
-    const d = document.createElement('div'); d.className = 'photo';
-    const img = new Image(); img.src = p.thumb; img.alt = 'Guest photo'; img.loading = 'lazy'; img.onclick = () => open(p.url, '_blank');
-    const b = document.createElement('button'); b.className = 'no'; b.textContent = 'Remove';
-    b.onclick = async () => {
-      if (!confirm('Remove this photo for everyone? This cannot be undone.')) return;
-      b.disabled = true;
-      try { await call({ method: 'POST', body: JSON.stringify({ id: p.id, action: 'remove-photo' }) }); d.remove(); }
-      catch (err) { $('#status').textContent = err.message; b.disabled = false; }
-    };
-    d.append(img, b); return d;
-  }));
-}
+$('#approveAllPhotos').onclick = async e => {
+  const b = e.currentTarget; b.disabled = true;
+  let done = 0;
+  for (const p of PENDING_PHOTOS) { try { await act(p.id, 'approve-photo'); done++; $('#status').textContent = `Approved ${done} / ${PENDING_PHOTOS.length}…`; } catch {} }
+  b.disabled = false; load();
+};
 $('#login').onsubmit = e => { e.preventDefault(); KEY = $('#key').value.trim(); load(); };
 if (KEY) load();
 </script>

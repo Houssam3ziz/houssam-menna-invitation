@@ -95,7 +95,7 @@ export function adminAuthorised(request: Request): boolean {
  * browser only through /api/media, which streams an allow-listed pathname.
  */
 export const ACCESS = 'private' as const
-export const MEDIA_PREFIXES = ['guests/', 'thumbs/', 'ink/'] as const
+export const MEDIA_PREFIXES = ['guests/', 'thumbs/', 'ink/', 'pending/guests/', 'pending/thumbs/'] as const
 export const mediaUrl = (pathname: string): string => `/api/media?p=${encodeURIComponent(pathname)}`
 
 /** Reads a private JSON blob by pathname, bypassing the CDN so edits show at once. */

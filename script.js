@@ -391,15 +391,14 @@ uploadBtn.addEventListener('click', async () => {
   uploadBtn.disabled = true;
   statusEl.textContent = ''; statusEl.className = 'upload-status';
   let ok = 0, failed = 0;
-  const sentThumbs = [];
+  const sentIds = [];
   for (const q of queue.filter(x => x.state === 'queued' || x.state === 'error')) {
     q.state = 'uploading'; q.progress = 0; renderQueue();
     try {
       const blob = await prepareImage(q.file);
       const photo = await sendPhoto(blob, p => { q.progress = p; const bar = queueEl.children[queue.indexOf(q)]; if (bar) { bar.querySelector('.q-bar i').style.width = p + '%'; bar.querySelector('.q-badge').textContent = p + '%'; } });
       q.state = 'done'; ok++;
-      sentThumbs.push(photo.thumb);
-      addPhoto(photo);
+      sentIds.push(photo.id);              // waits for the couple's approval — not added to the gallery yet
     } catch (err) {
       q.state = 'error'; failed++;
       q.reason = err.message;
@@ -409,11 +408,11 @@ uploadBtn.addEventListener('click', async () => {
   }
   uploadBtn.disabled = false;
   uploading = false;
-  if (sentThumbs.length) {           // one "new photos" email to the couple per batch; fire-and-forget
-    fetch(CONFIG.api + '/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thumbs: sentThumbs }), keepalive: true }).catch(() => {});
+  if (sentIds.length) {              // one "new photos" email to the couple per batch; fire-and-forget
+    fetch(CONFIG.api + '/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: sentIds }), keepalive: true }).catch(() => {});
   }
   if (ok) {
-    statusEl.innerHTML = `Thank you — ${ok} photo${ok === 1 ? '' : 's'} added to the gallery ♡ <a href="#gallery">View gallery</a>`;
+    statusEl.textContent = `Thank you ♡ ${ok === 1 ? 'Your photo was' : `Your ${ok} photos were`} sent and will appear in the gallery once approved.`;
     statusEl.classList.add('ok');
     if (!REDUCED) burst($('#uploader').getBoundingClientRect(), 28);
   }
@@ -463,17 +462,11 @@ function renderGallery() {
 }
 const galleryIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); galleryIO.unobserve(e.target); } }), { threshold: .1 });
 
-function addPhoto(photo) {
-  if (photos.some(p => p.url === photo.url)) return;
-  photos.unshift(photo); renderGallery();
-}
-
 async function loadGallery() {
   if (!photos.length) setGalleryState('loading');
   try {
     const list = await api('/photos');
-    const known = new Set(list.map(p => p.url));
-    photos = [...photos.filter(p => !known.has(p.url)), ...list];   // keep just-uploaded ones the CDN hasn't caught up with
+    photos = list;
     renderGallery();
   } catch (err) {
     console.warn('[gallery]', err);
@@ -534,8 +527,50 @@ lb.addEventListener('touchend', e => {
 });
 
 /* ============================================================
-   MESSAGES — private: POST /api/guestbook emails the couple; nothing is shown publicly
+   MESSAGE BOARD — /api/guestbook
    ============================================================ */
+const board = $('#board'), boardMore = $('#boardMore');
+let wishes = [], wishesShown = 6;
+const rel = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+function ago(iso) {
+  const s = (new Date(iso) - Date.now()) / 1000;
+  const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+  for (const [u, sec] of units) if (Math.abs(s) >= sec) return rel.format(Math.round(s / sec), u);
+  return 'just now';
+}
+function wishCard(w, fresh = false) {
+  const el = document.createElement('article');
+  el.className = 'note' + (fresh ? ' fresh' : '');
+  const msg = document.createElement('p'); msg.className = 'note-msg'; msg.textContent = w.message || '';
+  const by = document.createElement('p'); by.className = 'note-by';
+  const name = document.createElement('b'); name.textContent = w.name;
+  const when = document.createElement('time'); when.dateTime = w.createdAt; when.textContent = ago(w.createdAt);
+  by.append('— ', name, ' · ', when);
+  if (w.drawing) {
+    const ink = document.createElement('img');
+    ink.className = 'note-ink'; ink.src = w.drawing; ink.loading = 'lazy'; ink.decoding = 'async';
+    ink.alt = `Handwritten message from ${w.name}`;
+    el.classList.add('has-ink');
+    el.append(ink);
+  }
+  if (w.message) el.append(msg);
+  el.append(by);
+  return el;
+}
+const noteIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); noteIO.unobserve(e.target); } }), { threshold: .15 });
+function renderBoard() {
+  board.innerHTML = '';
+  if (!wishes.length) { board.innerHTML = '<p class="g-empty">Be the first to leave us a message ♡</p>'; boardMore.hidden = true; return; }
+  wishes.slice(0, wishesShown).forEach((w, i) => { const c = wishCard(w, w._fresh); c.style.setProperty('--i', i % 6); board.appendChild(c); noteIO.observe(c); });
+  boardMore.hidden = wishes.length <= wishesShown;
+}
+async function loadWishes() {
+  board.innerHTML = '<div class="g-skeleton notes">' + '<span></span>'.repeat(3) + '</div>';
+  try { wishes = await api('/guestbook'); renderBoard(); }
+  catch (err) { console.warn('[wishes]', err); board.innerHTML = '<p class="g-error">Messages couldn’t load right now.</p>'; }
+}
+boardMore.onclick = () => { wishesShown += 6; renderBoard(); };
+new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { o.disconnect(); loadWishes(); } }, { rootMargin: '600px' }).observe($('#wishes'));
 
 /* ---- handwriting pad: finger, Apple Pencil, stylus or mouse ---- */
 const ink = (() => {
@@ -671,8 +706,15 @@ $('#wishForm').addEventListener('submit', async e => {
     if (!ink.empty) form.append('drawing', await ink.toBlob(), 'message.png');
     const r = await fetch(CONFIG.api + '/guestbook', { method: 'POST', body: form });
     if (!r.ok) throw new Error(r.status === 429 ? 'rate-limited' : 'HTTP ' + r.status);
+    const entry = await r.json();
     e.target.reset(); ink.clear(); $('#wishCount').textContent = '0 / 300';
-    wishStatus.textContent = 'Thank you ♡ Your message has been sent to Houssam & Menna.';
+    if (entry.pending) {
+      wishStatus.textContent = 'Thank you ♡ Your message was sent and will appear on the board once approved.';
+    } else {
+      entry._fresh = true;
+      wishes.unshift(entry); wishesShown = Math.max(wishesShown, 6); renderBoard();
+      wishStatus.textContent = 'Thank you — your message is on our board ♡';
+    }
     wishStatus.classList.add('ok');
     if (!REDUCED) burst(btn.getBoundingClientRect(), 24);
   } catch (err) {

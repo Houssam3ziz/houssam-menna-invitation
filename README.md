@@ -8,16 +8,18 @@ Everything lives in the `CONFIG` block at the top of `script.js` — date/time, 
 ## Features
 - Envelope opening, living hero, scratch-to-reveal date (day · month · year · time), timeline, countdown, location
 - **Share Your Moments** — guests upload photos (resized + re-encoded to JPEG in the browser, which strips GPS)
-- **Photo Gallery** — every guest photo, lightbox with keyboard + swipe
-- **Leave Us a Message** — private messages: guests can **type**, **write/draw with a finger** (or Apple Pencil / mouse), or both. Nothing is shown publicly; each message is emailed to the couple and listed on `/admin.html`
+- **Photo Gallery** — approved guest photos, lightbox with keyboard + swipe
+- **Leave Us a Message** — message board; guests can **type**, **write/draw with a finger** (or Apple Pencil / mouse), or both in one message
 - Respects `prefers-reduced-motion`
 
 ## Backend (Vercel)
+
+**Everything is approval-first:** new messages and photos are stored privately and appear on the site only after approval on `/admin.html`. The couple gets an email for each.
 | Route | Purpose | Storage |
 | --- | --- | --- |
-| `GET/POST /api/photos` | list / upload guest photos (magic-byte checked, ≤ 4 MB) | Vercel Blob `guests/` |
-| `POST /api/guestbook` | send a private message (text and/or handwritten PNG) — no public listing | Vercel Blob `guestbook/`, `ink/` |
-| `GET/POST /api/moderate` | approve / reject / remove messages (needs `x-admin-key`) | `guestbook-pending/` → `guestbook/` |
+| `GET/POST /api/photos` | list approved / upload guest photos (magic-byte checked, ≤ 4 MB) | Vercel Blob `pending/guests/` → `guests/` |
+| `GET/POST /api/guestbook` | list / post messages (text and/or handwritten PNG) | Vercel Blob `guestbook/`, `ink/` |
+| `GET/POST /api/moderate` | approve / reject / remove messages **and photos** (needs `x-admin-key`) | `guestbook-pending/` → `guestbook/`, `pending/guests/` → `guests/` |
 
 Spam protection on both write endpoints: per-IP rate limit, server-side honeypot, minimum time on the form,
 size limits, file-signature checks. Photos also get a ~520 px thumbnail so the gallery stays light.

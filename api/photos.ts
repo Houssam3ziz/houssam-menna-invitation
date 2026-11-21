@@ -1,32 +1,23 @@
 /**
  * Guest photos.
  *
- *   GET  /api/photos → every guest photo, newest first.
+ *   GET  /api/photos → APPROVED guest photos only, newest first.
  *   POST /api/photos → multipart: full photo + small thumbnail (the browser has
  *                      already resized and re-encoded both, stripping EXIF/GPS).
+ *                      New photos wait in pending/ until approved on /admin.html.
  *
  * The file is checked here by its magic bytes — never by the Content-Type the
- * client claims — then written to Vercel Blob. No storage key ever reaches
- * the browser: BLOB_READ_WRITE_TOKEN is injected by Vercel at runtime.
+ * client claims — then written to the private Blob store. No storage key ever
+ * reaches the browser: BLOB_READ_WRITE_TOKEN is injected by Vercel at runtime.
  */
-import { list, put } from '@vercel/blob'
-import { ACCESS, SHORT_CDN_CACHE, error, mediaUrl, json, newId, rateLimited, readJson, sniffImage, storageReady } from './_lib/http.js'
+import { put } from '@vercel/blob'
+import { ACCESS, SHORT_CDN_CACHE, error, json, newId, rateLimited, readJson, sniffImage, storageReady } from './_lib/http.js'
 import { notify } from './_lib/notify.js'
+import { AREAS, listPhotos } from './_lib/photos.js'
 
-const PREFIX = 'guests/'
-const THUMBS = 'thumbs/'
 /** Vercel Functions accept request bodies up to 4.5 MB (photo + thumbnail). */
 const MAX_BYTES = 4 * 1024 * 1024
 const MAX_THUMB = 300 * 1024
-const MAX_LISTED = 600
-
-interface GuestPhoto {
-  id: string
-  url: string
-  /** ~480 px preview for the grid; the full photo loads only in the lightbox. */
-  thumb: string
-  createdAt: string
-}
 
 const toBuffer = (b: Uint8Array) => Buffer.from(b.buffer, b.byteOffset, b.byteLength)
 const opts = (contentType: string) => ({
@@ -39,33 +30,8 @@ const opts = (contentType: string) => ({
 
 export async function GET(): Promise<Response> {
   if (!storageReady()) return error('storage-unavailable', 503)
-
   try {
-    const thumbs = new Map<string, string>()
-    let cursor: string | undefined
-    do {
-      const page = await list({ prefix: THUMBS, limit: 1000, cursor })
-      for (const blob of page.blobs) thumbs.set(blob.pathname.slice(THUMBS.length), mediaUrl(blob.pathname))
-      cursor = page.hasMore ? page.cursor : undefined
-    } while (cursor)
-
-    const photos: GuestPhoto[] = []
-    do {
-      const page = await list({ prefix: PREFIX, limit: 1000, cursor })
-      for (const blob of page.blobs) {
-        const key = blob.pathname.slice(PREFIX.length)
-        photos.push({
-          id: blob.pathname,
-          url: mediaUrl(blob.pathname),
-          thumb: thumbs.get(key) ?? mediaUrl(blob.pathname),
-          createdAt: new Date(blob.uploadedAt).toISOString(),
-        })
-      }
-      cursor = page.hasMore ? page.cursor : undefined
-    } while (cursor && photos.length < MAX_LISTED)
-
-    photos.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    return json(photos.slice(0, MAX_LISTED), 200, { 'Cache-Control': SHORT_CDN_CACHE })
+    return json(await listPhotos('approved'), 200, { 'Cache-Control': SHORT_CDN_CACHE })
   } catch (cause) {
     console.error('[api/photos] list failed', cause)
     return error('list-failed', 502)
@@ -104,15 +70,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!kind) return error('unsupported-type', 415)
   const thumbKind = thumb ? sniffImage(thumb) : null
 
-  const key = `${new Date().toISOString().slice(0, 10)}/${newId('photo')}`
+  const key = `${new Date().toISOString().slice(0, 10)}/${newId('photo')}.${kind.ext}`
   try {
-    const full = await put(`${PREFIX}${key}.${kind.ext}`, toBuffer(photo), opts(kind.type))
-    const small =
-      thumb && thumbKind
-        ? await put(`${THUMBS}${key}.${kind.ext}`, toBuffer(thumb), opts(thumbKind.type))
-        : null
-    const result: GuestPhoto = { id: full.pathname, url: mediaUrl(full.pathname), thumb: mediaUrl(small?.pathname ?? full.pathname), createdAt: new Date().toISOString() }
-    return json(result, 201, { 'Cache-Control': 'no-store' })
+    await put(AREAS.pending.full + key, toBuffer(photo), opts(kind.type))
+    if (thumb && thumbKind) await put(AREAS.pending.thumb + key, toBuffer(thumb), opts(thumbKind.type))
+    return json({ ok: true, pending: true, id: AREAS.pending.full + key }, 201, { 'Cache-Control': 'no-store' })
   } catch (cause) {
     console.error('[api/photos] write failed', cause)
     return error('write-failed', 502)
@@ -120,23 +82,23 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 /**
- * POST application/json { thumbs: string[] } — sent once after a guest finishes
+ * POST application/json { ids: string[] } — sent once after a guest finishes
  * a batch, so the couple gets one email per batch rather than one per photo.
- * Only thumbnails that live in this project's Blob store are accepted.
+ * Only ids of photos waiting in pending/ are accepted.
  */
 async function notifyBatch(request: Request): Promise<Response> {
   if (rateLimited(request, 'photo-notify', 4, 10 * 60_000)) return json({ ok: true }, 202)
-  const body = await readJson<{ thumbs?: unknown }>(request, 8192)
-  const thumbs = Array.isArray(body?.thumbs) ? body.thumbs.filter(isOwnThumb).slice(0, 10) : []
-  if (thumbs.length === 0) return error('bad-request', 400)
+  const body = await readJson<{ ids?: unknown }>(request, 8192)
+  const ids = Array.isArray(body?.ids) ? body.ids.filter(isPendingId).slice(0, 10) : []
+  if (ids.length === 0) return error('bad-request', 400)
+  const n = ids.length
   await notify({
-    subject: `${thumbs.length} new guest photo${thumbs.length === 1 ? '' : 's'}`,
-    lines: [`A guest just shared ${thumbs.length} photo${thumbs.length === 1 ? '' : 's'} on the invitation.`],
-    images: thumbs,
+    subject: `${n} new guest photo${n === 1 ? '' : 's'} — waiting for your approval`,
+    lines: [`A guest just shared ${n} photo${n === 1 ? '' : 's'}. They will appear in the gallery only after you approve them on the admin page.`],
+    images: ids.map((id) => `/api/media?p=${encodeURIComponent(id.replace(AREAS.pending.full, AREAS.pending.thumb))}`),
   })
   return json({ ok: true }, 202, { 'Cache-Control': 'no-store' })
 }
 
-function isOwnThumb(value: unknown): value is string {
-  return typeof value === 'string' && value.length < 300 && /^\/api\/media\?p=(thumbs|guests)%2F[\w%.-]+$/.test(value)
-}
+const PENDING_ID = /^pending\/guests\/\d{4}-\d{2}-\d{2}\/photo_[a-z0-9]+_[a-f0-9]{8,32}\.(jpg|png|webp)$/
+const isPendingId = (value: unknown): value is string => typeof value === 'string' && PENDING_ID.test(value)
