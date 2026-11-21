@@ -542,8 +542,6 @@ body:not(.opened) .opening-sec .reveal{opacity:0!important;transform:translateY(
 .g-error{color:#9a4632}
 .g-skeleton{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .g-skeleton span{aspect-ratio:1;border-radius:12px;background:linear-gradient(100deg,#f1e7d3 30%,#fbf6ec 50%,#f1e7d3 70%) 0 0/220% 100%;animation:shimmerX 1.5s ease-in-out infinite}
-.g-skeleton.notes{grid-template-columns:1fr}
-.g-skeleton.notes span{aspect-ratio:auto;height:96px}
 @keyframes shimmerX{from{background-position:120% 0}to{background-position:-120% 0}}
 .gallery{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}
 .gallery:empty{display:none}
@@ -636,28 +634,10 @@ body.lb-open{overflow:hidden}
 .ink-btn:disabled{opacity:.4;cursor:default}
 .ink-note{font-size:13.5px;color:var(--muted)}
 .wish-form .fine{text-align:center}
-.board{margin:28px auto 0;max-width:420px;display:flex;flex-direction:column;gap:14px}
-.note{
-  position:relative;text-align:left;padding:20px 20px 16px 22px;border-radius:4px 16px 16px 16px;background:#fffdf8;
-  border:1px solid #efe4cc;box-shadow:0 12px 26px -16px rgba(120,88,36,.55);
-  opacity:0;transform:translateY(16px) rotate(-.6deg);transition:opacity .8s ease calc(var(--i)*70ms),transform .9s cubic-bezier(.2,.7,.2,1) calc(var(--i)*70ms);
-}
-.note:nth-child(even){transform:translateY(16px) rotate(.6deg)}
-.note.in{opacity:1;transform:none}
-.note::before{content:"“";position:absolute;top:-6px;left:12px;font-family:var(--serif);font-size:56px;line-height:1;color:var(--gold-l)}
-.note.fresh{animation:noteIn 1s cubic-bezier(.2,.8,.2,1) both;box-shadow:0 0 0 2px rgba(227,200,136,.6),0 16px 30px -16px rgba(120,88,36,.6)}
-@keyframes noteIn{from{opacity:0;transform:translateY(-14px) scale(.96)}to{opacity:1;transform:none}}
-.note-msg{font-size:18px;line-height:1.55;color:var(--ink);white-space:pre-line;overflow-wrap:anywhere}
-.note-by{margin-top:10px;font-size:14.5px;color:var(--muted)}
-.note-ink{display:block;max-width:100%;max-height:260px;margin:4px auto 2px;object-fit:contain}
-.note.has-ink{padding-top:16px;background:linear-gradient(transparent 0 calc(100% - 1px),rgba(184,137,74,.12) calc(100% - 1px)) 0 10px/100% 32px,#fffdf8}
-.note.has-ink .note-msg{margin-top:6px}
-.note-by b{font-weight:500;color:var(--gold-ink)}
-.wishes-sec .btn-outline{margin-top:20px}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0s!important}
-  .reveal,.g-item,.note{opacity:1!important;transform:none!important}
+  .reveal,.g-item{opacity:1!important;transform:none!important}
   .scratch-card::after,.hero-img.breeze{display:none}
 }
 

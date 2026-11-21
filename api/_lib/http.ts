@@ -105,8 +105,6 @@ export async function readJsonBlob<T>(pathname: string): Promise<T | null> {
   return (await new Response(res.stream).json()) as T
 }
 
-/** Moderation is opt-in: set MODERATE_WISHES=true in Vercel to hold new messages for approval. */
-export const moderationOn = (): boolean => process.env.MODERATE_WISHES === 'true'
 
 export interface GuestbookEntry {
   id: string

@@ -33,12 +33,12 @@
 <body>
 <main>
   <h1>Messages &amp; photos</h1>
-  <p class="sub">Approve or remove guest messages and photos. Only works with the ADMIN_KEY set in Vercel.</p>
+  <p class="sub">Private guest messages (only you can see them) and guest photos. Only works with the ADMIN_KEY set in Vercel.</p>
   <form id="login"><input type="password" id="key" placeholder="Admin key" autocomplete="current-password" required><button class="ok">Open</button></form>
   <p id="status" role="status"></p>
   <section id="lists" hidden>
-    <h2>Waiting for approval <span id="nPending"></span></h2><div id="pending"></div>
-    <h2>Published <span id="nPublished"></span></h2><div id="published"></div>
+    <div id="pendingWrap" hidden><h2>Waiting for approval <span id="nPending"></span></h2><div id="pending"></div></div>
+    <h2>Messages <span id="nPublished"></span></h2><div id="published"></div>
     <h2>Guest photos <span id="nPhotos"></span></h2><div class="photos" id="photos"></div>
   </section>
 </main>
@@ -65,8 +65,8 @@ async function load() {
   try {
     const { pending, published } = await call();
     $('#pending').replaceChildren(...pending.map(e => card(e, [['Approve', 'approve', 'ok'], ['Reject', 'reject', 'no']])));
-    $('#published').replaceChildren(...published.map(e => card(e, [['Remove', 'remove', 'no']])));
-    $('#nPending').textContent = `(${pending.length})`; $('#nPublished').textContent = `(${published.length})`;
+    $('#published').replaceChildren(...published.map(e => card(e, [['Delete', 'remove', 'no']])));
+    $('#nPending').textContent = `(${pending.length})`; $('#pendingWrap').hidden = pending.length === 0; $('#nPublished').textContent = `(${published.length})`;
     $('#lists').hidden = false; $('#login').hidden = true; $('#status').textContent = '';
     sessionStorage.setItem('hm-admin', KEY);
     loadPhotos();

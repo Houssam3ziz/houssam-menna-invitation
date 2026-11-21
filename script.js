@@ -534,50 +534,8 @@ lb.addEventListener('touchend', e => {
 });
 
 /* ============================================================
-   MESSAGE BOARD — /api/guestbook
+   MESSAGES — private: POST /api/guestbook emails the couple; nothing is shown publicly
    ============================================================ */
-const board = $('#board'), boardMore = $('#boardMore');
-let wishes = [], wishesShown = 6;
-const rel = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-function ago(iso) {
-  const s = (new Date(iso) - Date.now()) / 1000;
-  const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
-  for (const [u, sec] of units) if (Math.abs(s) >= sec) return rel.format(Math.round(s / sec), u);
-  return 'just now';
-}
-function wishCard(w, fresh = false) {
-  const el = document.createElement('article');
-  el.className = 'note' + (fresh ? ' fresh' : '');
-  const msg = document.createElement('p'); msg.className = 'note-msg'; msg.textContent = w.message || '';
-  const by = document.createElement('p'); by.className = 'note-by';
-  const name = document.createElement('b'); name.textContent = w.name;
-  const when = document.createElement('time'); when.dateTime = w.createdAt; when.textContent = ago(w.createdAt);
-  by.append('— ', name, ' · ', when);
-  if (w.drawing) {
-    const ink = document.createElement('img');
-    ink.className = 'note-ink'; ink.src = w.drawing; ink.loading = 'lazy'; ink.decoding = 'async';
-    ink.alt = `Handwritten message from ${w.name}`;
-    el.classList.add('has-ink');
-    el.append(ink);
-  }
-  if (w.message) el.append(msg);
-  el.append(by);
-  return el;
-}
-const noteIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); noteIO.unobserve(e.target); } }), { threshold: .15 });
-function renderBoard() {
-  board.innerHTML = '';
-  if (!wishes.length) { board.innerHTML = '<p class="g-empty">Be the first to leave us a message ♡</p>'; boardMore.hidden = true; return; }
-  wishes.slice(0, wishesShown).forEach((w, i) => { const c = wishCard(w, w._fresh); c.style.setProperty('--i', i % 6); board.appendChild(c); noteIO.observe(c); });
-  boardMore.hidden = wishes.length <= wishesShown;
-}
-async function loadWishes() {
-  board.innerHTML = '<div class="g-skeleton notes">' + '<span></span>'.repeat(3) + '</div>';
-  try { wishes = await api('/guestbook'); renderBoard(); }
-  catch (err) { console.warn('[wishes]', err); board.innerHTML = '<p class="g-error">Messages couldn’t load right now.</p>'; }
-}
-boardMore.onclick = () => { wishesShown += 6; renderBoard(); };
-new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { o.disconnect(); loadWishes(); } }, { rootMargin: '600px' }).observe($('#wishes'));
 
 /* ---- handwriting pad: finger, Apple Pencil, stylus or mouse ---- */
 const ink = (() => {
@@ -713,15 +671,8 @@ $('#wishForm').addEventListener('submit', async e => {
     if (!ink.empty) form.append('drawing', await ink.toBlob(), 'message.png');
     const r = await fetch(CONFIG.api + '/guestbook', { method: 'POST', body: form });
     if (!r.ok) throw new Error(r.status === 429 ? 'rate-limited' : 'HTTP ' + r.status);
-    const entry = await r.json();
     e.target.reset(); ink.clear(); $('#wishCount').textContent = '0 / 300';
-    if (entry.pending) {
-      wishStatus.textContent = 'Thank you ♡ Your message will appear on the board shortly.';
-    } else {
-      entry._fresh = true;
-      wishes.unshift(entry); wishesShown = Math.max(wishesShown, 6); renderBoard();
-      wishStatus.textContent = 'Thank you — your message is on our board ♡';
-    }
+    wishStatus.textContent = 'Thank you ♡ Your message has been sent to Houssam & Menna.';
     wishStatus.classList.add('ok');
     if (!REDUCED) burst(btn.getBoundingClientRect(), 24);
   } catch (err) {
