@@ -25,6 +25,7 @@ import {
   storageReady,
 } from './_lib/http.js'
 import type { GuestbookEntry } from './_lib/http.js'
+import { notify } from './_lib/notify.js'
 
 const PUBLISHED = 'guestbook/'
 const PENDING = 'guestbook-pending/'
@@ -96,9 +97,15 @@ export async function POST(request: Request): Promise<Response> {
       addRandomSuffix: false,
       cacheControlMaxAge: 60,
     })
-    return json({ ...entry, pending }, 201, { 'Cache-Control': 'no-store' })
   } catch (cause) {
     console.error('[api/guestbook] write failed', cause)
     return error('write-failed', 502)
   }
+
+  await notify({
+    subject: `New message from ${name}${pending ? ' (waiting for approval)' : ''}`,
+    lines: [`From: ${name}`, ...(message ? [message] : []), ...(entry.drawing ? ['(handwritten message below)'] : [])],
+    images: entry.drawing ? [entry.drawing] : [],
+  })
+  return json({ ...entry, pending }, 201, { 'Cache-Control': 'no-store' })
 }

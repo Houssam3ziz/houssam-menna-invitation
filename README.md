@@ -28,6 +28,10 @@ size limits, file-signature checks. Photos also get a ~520 px thumbnail so the g
 | `BLOB_READ_WRITE_TOKEN` | yes — added automatically when you connect a Blob store | storage |
 | `MODERATE_WISHES` | optional — `true` holds new messages until approved | moderation |
 | `ADMIN_KEY` | optional — ≥ 16 random characters | unlocks `/admin.html` |
+| `RESEND_API_KEY` | optional — from resend.com | email notifications for new messages and photos |
+| `NOTIFY_EMAIL` | with the key above | where notifications go (comma-separated) |
+| `NOTIFY_FROM` | optional | sender; defaults to `onboarding@resend.dev` (delivers only to the Resend account's own email until a domain is verified) |
+| `SITE_URL` | optional | adds an "Open the admin page" link to the emails |
 
 One-time setup: Vercel → Storage → create a **Blob** store → connect it to this project
 (adds `BLOB_READ_WRITE_TOKEN` automatically — never commit it). Remove an item from Storage → Blob.

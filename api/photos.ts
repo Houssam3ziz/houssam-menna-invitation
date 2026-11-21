@@ -10,7 +10,8 @@
  * the browser: BLOB_READ_WRITE_TOKEN is injected by Vercel at runtime.
  */
 import { list, put } from '@vercel/blob'
-import { SHORT_CDN_CACHE, error, json, newId, rateLimited, sniffImage, storageReady } from './_lib/http.js'
+import { SHORT_CDN_CACHE, error, json, newId, rateLimited, readJson, sniffImage, storageReady } from './_lib/http.js'
+import { notify } from './_lib/notify.js'
 
 const PREFIX = 'guests/'
 const THUMBS = 'thumbs/'
@@ -78,6 +79,7 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: Request): Promise<Response> {
   if (!storageReady()) return error('storage-unavailable', 503)
+  if ((request.headers.get('content-type') ?? '').includes('application/json')) return notifyBatch(request)
   if (rateLimited(request, 'photo', 40, 10 * 60_000)) return error('rate-limited', 429)
 
   const declared = Number(request.headers.get('content-length') ?? '0')
@@ -114,5 +116,33 @@ export async function POST(request: Request): Promise<Response> {
   } catch (cause) {
     console.error('[api/photos] write failed', cause)
     return error('write-failed', 502)
+  }
+}
+
+/**
+ * POST application/json { thumbs: string[] } — sent once after a guest finishes
+ * a batch, so the couple gets one email per batch rather than one per photo.
+ * Only thumbnails that live in this project's Blob store are accepted.
+ */
+async function notifyBatch(request: Request): Promise<Response> {
+  if (rateLimited(request, 'photo-notify', 4, 10 * 60_000)) return json({ ok: true }, 202)
+  const body = await readJson<{ thumbs?: unknown }>(request, 8192)
+  const thumbs = Array.isArray(body?.thumbs) ? body.thumbs.filter(isOwnThumb).slice(0, 10) : []
+  if (thumbs.length === 0) return error('bad-request', 400)
+  await notify({
+    subject: `${thumbs.length} new guest photo${thumbs.length === 1 ? '' : 's'}`,
+    lines: [`A guest just shared ${thumbs.length} photo${thumbs.length === 1 ? '' : 's'} on the invitation.`],
+    images: thumbs,
+  })
+  return json({ ok: true }, 202, { 'Cache-Control': 'no-store' })
+}
+
+function isOwnThumb(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 400) return false
+  try {
+    const u = new URL(value)
+    return u.protocol === 'https:' && u.hostname.endsWith('.public.blob.vercel-storage.com') && /^\/(thumbs|guests)\//.test(u.pathname)
+  } catch {
+    return false
   }
 }

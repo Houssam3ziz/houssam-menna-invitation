@@ -9,16 +9,7 @@
  * variable the endpoint is disabled entirely.
  */
 import { del, put } from '@vercel/blob'
-import { error, json, rateLimited, readEntries, readJson, storageReady } from './_lib/http.js'
-
-function authorised(request: Request): boolean {
-  const expected = process.env.ADMIN_KEY ?? ''
-  const given = request.headers.get('x-admin-key') ?? ''
-  if (expected.length < 16 || given.length !== expected.length) return false
-  let diff = 0
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i)
-  return diff === 0
-}
+import { adminAuthorised as authorised, error, json, rateLimited, readEntries, readJson, storageReady } from './_lib/http.js'
 
 export async function GET(request: Request): Promise<Response> {
   if (rateLimited(request, 'admin', 30, 60_000)) return error('rate-limited', 429)

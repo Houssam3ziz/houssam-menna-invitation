@@ -391,12 +391,14 @@ uploadBtn.addEventListener('click', async () => {
   uploadBtn.disabled = true;
   statusEl.textContent = ''; statusEl.className = 'upload-status';
   let ok = 0, failed = 0;
+  const sentThumbs = [];
   for (const q of queue.filter(x => x.state === 'queued' || x.state === 'error')) {
     q.state = 'uploading'; q.progress = 0; renderQueue();
     try {
       const blob = await prepareImage(q.file);
       const photo = await sendPhoto(blob, p => { q.progress = p; const bar = queueEl.children[queue.indexOf(q)]; if (bar) { bar.querySelector('.q-bar i').style.width = p + '%'; bar.querySelector('.q-badge').textContent = p + '%'; } });
       q.state = 'done'; ok++;
+      sentThumbs.push(photo.thumb);
       addPhoto(photo);
     } catch (err) {
       q.state = 'error'; failed++;
@@ -407,6 +409,9 @@ uploadBtn.addEventListener('click', async () => {
   }
   uploadBtn.disabled = false;
   uploading = false;
+  if (sentThumbs.length) {           // one "new photos" email to the couple per batch; fire-and-forget
+    fetch(CONFIG.api + '/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ thumbs: sentThumbs }), keepalive: true }).catch(() => {});
+  }
   if (ok) {
     statusEl.innerHTML = `Thank you — ${ok} photo${ok === 1 ? '' : 's'} added to the gallery ♡ <a href="#gallery">View gallery</a>`;
     statusEl.classList.add('ok');

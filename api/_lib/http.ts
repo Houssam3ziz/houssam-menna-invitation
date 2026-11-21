@@ -80,6 +80,16 @@ export function sniffImage(bytes: Uint8Array): { type: string; ext: string } | n
   return null
 }
 
+/** Constant-time check of the `x-admin-key` header against ADMIN_KEY (≥ 16 chars, else disabled). */
+export function adminAuthorised(request: Request): boolean {
+  const expected = process.env.ADMIN_KEY ?? ''
+  const given = request.headers.get('x-admin-key') ?? ''
+  if (expected.length < 16 || given.length !== expected.length) return false
+  let diff = 0
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i)
+  return diff === 0
+}
+
 /** Moderation is opt-in: set MODERATE_WISHES=true in Vercel to hold new messages for approval. */
 export const moderationOn = (): boolean => process.env.MODERATE_WISHES === 'true'
 
